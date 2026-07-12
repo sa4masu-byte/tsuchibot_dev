@@ -4,7 +4,14 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-PYTHON="$REPOSITORY_ROOT/.venv/bin/python"
+VENV_PYTHON="$REPOSITORY_ROOT/.venv/bin/python"
+if [[ -x "$VENV_PYTHON" ]]; then
+  PYTHON="$VENV_PYTHON"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON="$(command -v python3)"
+else
+  PYTHON=""
+fi
 
 usage() {
   cat <<'EOF'
@@ -49,9 +56,9 @@ case "$mode" in
     ;;
 esac
 
-if [[ ! -x "$PYTHON" ]]; then
-  echo "error: Python environment is not installed." >&2
-  echo "Run 'make install' from $REPOSITORY_ROOT first." >&2
+if [[ -z "$PYTHON" || ! -x "$PYTHON" ]]; then
+  echo "error: Python 3 is not installed." >&2
+  echo "Install Python or run 'make install' from $REPOSITORY_ROOT first." >&2
   exit 1
 fi
 
