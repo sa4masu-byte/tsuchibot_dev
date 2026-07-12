@@ -1,0 +1,32 @@
+.PHONY: install dev-backend dev-frontend explore explore-full test lint typecheck check
+
+install:
+	python3 -m venv .venv
+	.venv/bin/pip install -e '.[dev]'
+	pnpm --dir frontend install
+
+dev-backend:
+	./scripts/dev-backend.sh
+
+dev-frontend:
+	./scripts/frontend.sh dev
+
+explore:
+	./scripts/explore.sh incremental
+
+explore-full:
+	./scripts/explore.sh full
+
+test:
+	.venv/bin/pytest
+	./scripts/frontend.sh test
+
+lint:
+	.venv/bin/ruff check backend worker
+	./scripts/frontend.sh lint
+
+typecheck:
+	.venv/bin/mypy
+	./scripts/frontend.sh typecheck
+
+check: lint typecheck test

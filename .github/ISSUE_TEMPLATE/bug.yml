@@ -1,0 +1,23 @@
+name: Bug report
+description: Reproducible defect in Tsuchibot
+body:
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: input
+    id: requirement
+    attributes:
+      label: Related requirement or ADR
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted logs or reproduction steps

@@ -1,0 +1,54 @@
+from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Environment configuration. Secrets are never represented in API responses."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="TSUCHIBOT_",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    env: str = "development"
+    log_level: str = "INFO"
+    shared_password: str = "change-me"
+    session_secret: str = "development-only-session-secret-change-me"
+    session_secure: bool = False
+    session_ttl_seconds: int = 60 * 60 * 24 * 7
+    cors_origins: str = "http://localhost:3000"
+    database_url: str | None = None
+    github_repository: str | None = None
+    github_token: str | None = None
+    github_workflow: str = "explore.yml"
+    jimoty_max_pages: int = Field(default=1, ge=1, le=20)
+    jimoty_request_interval_seconds: float = Field(default=1.0, ge=0.5, le=60)
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+
+    @property
+    def production(self) -> bool:
+        return self.env.lower() == "production"
+
+    def validate_runtime_secrets(self) -> None:
+        if not self.production:
+            return
+        if self.shared_password == "change-me":
+            raise ValueError("TSUCHIBOT_SHARED_PASSWORD must be set in production")
+        if len(self.session_secret) < 32:
+            raise ValueError("TSUCHIBOT_SESSION_SECRET must be at least 32 characters")
+        if not self.session_secure:
+            raise ValueError("TSUCHIBOT_SESSION_SECURE must be true in production")
+
+
+@lru_cache
+def get_settings() -> Settings:
+    settings = Settings()
+    settings.validate_runtime_secrets()
+    return settings

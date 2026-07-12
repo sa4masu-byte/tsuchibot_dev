@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.local
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+node_modules/
+.next/
+frontend/next-env.d.ts
+*.tsbuildinfo
+playwright-report/
+test-results/

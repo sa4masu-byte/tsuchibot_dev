@@ -1,0 +1,26 @@
+version: phase1-v1
+business:
+  monthly_profit_target_jpy: 30000
+  monthly_sales_target: 60
+  minimum_expected_profit_jpy: 300
+  recommended_profit_jpy: 500
+  strong_profit_jpy: 1000
+  inventory_failure_days: 90
+exploration:
+  detailed_vision_limit: 30
+  mercari_research_limit: 20
+  ec_keyword_limit: 20
+  final_candidate_limit: 10
+  jimoty_max_pages: 1
+  jimoty_request_interval_seconds: 1.0
+mercari:
+  evidence_days: 90
+  minimum_sold_comparables: 3
+  sold_result_limit: 50
+  active_result_limit: 50
+recommendation:
+  sales_prospect_threshold: 70
+ec:
+  source_order: [amazon, rakuten, aliexpress, shein]
+  overseas_delivery_days_max: 7
+  maximum_purchase_quantity: 4

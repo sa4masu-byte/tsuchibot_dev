@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tsuchibot
+      POSTGRES_USER: tsuchibot
+      POSTGRES_PASSWORD: tsuchibot
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tsuchibot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - tsuchibot-postgres:/var/lib/postgresql/data
+
+volumes:
+  tsuchibot-postgres:
