@@ -29,6 +29,13 @@ make check
 
 ## 手動探索バッチ
 
+Supabase接続を設定した後、最初にchecksum管理付きmigrationを適用します。
+
+```bash
+make migrate
+make migration-status
+```
+
 通常の差分探索は次のいずれかで開始できます。
 
 ```bash

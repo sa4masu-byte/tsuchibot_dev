@@ -29,6 +29,7 @@ class GitHubActionsDispatcher:
                 "mode": run.mode.value,
                 "target_run_id": str(run.target_run_id) if run.target_run_id else "",
                 "public_run_id": str(run.id),
+                "source_mode": "live",
             },
         }
         headers = {

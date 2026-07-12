@@ -48,3 +48,13 @@ Implemented without changing the roadmap or domain calculation plan:
 The project background now records that the user manages Jimoty operations and uses the system for
 appropriate price-setting research. Requirements, architecture, roadmap, and implementation order
 remain unchanged as requested.
+
+## Connected development environment (2026-07-13)
+
+- Supabase migrations `0001` through `0003` applied with checksum tracking.
+- Schema verification found 15 application tables, two Jimoty source definitions, and RLS enabled
+  on all 14 application-owned base tables (the migration ledger is separate).
+- First live incremental collection completed for both locations: 20 source products, 20 source
+  observations, 20 price observations, 20 availability observations, and 20 image references.
+- GitHub repository and CI connected; live exploration still requires the database connection to be
+  registered as the repository secret `TSUCHIBOT_DATABASE_URL`.

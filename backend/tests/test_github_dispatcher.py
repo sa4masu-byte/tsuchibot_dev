@@ -25,3 +25,4 @@ async def test_github_dispatcher_keeps_token_server_side() -> None:
     assert captured.headers["Authorization"] == "Bearer secret"
     assert b"secret" not in captured.content
     assert b"retry_failed" in captured.content
+    assert b'"source_mode":"live"' in captured.content

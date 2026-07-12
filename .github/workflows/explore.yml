@@ -17,6 +17,12 @@ on:
         description: Public run identifier created by the API
         type: string
         required: false
+      source_mode:
+        description: Use disabled for a no-network workflow diagnostic
+        type: choice
+        required: true
+        default: live
+        options: [live, disabled]
 
 concurrency:
   group: tsuchibot-exploration
@@ -36,14 +42,20 @@ jobs:
       - name: Validate retry target
         if: inputs.mode == 'retry_failed' && inputs.target_run_id == ''
         run: exit 1
+      - name: Apply database migrations
+        if: inputs.source_mode == 'live'
+        env:
+          TSUCHIBOT_DATABASE_URL: ${{ secrets.TSUCHIBOT_DATABASE_URL }}
+        run: python scripts/migrate.py apply
       - name: Run exploration worker
         env:
           TSUCHIBOT_DATABASE_URL: ${{ secrets.TSUCHIBOT_DATABASE_URL }}
           TSUCHIBOT_GEMINI_API_KEY: ${{ secrets.TSUCHIBOT_GEMINI_API_KEY }}
           EXPLORATION_MODE: ${{ inputs.mode }}
           TARGET_RUN_ID: ${{ inputs.target_run_id }}
+          SOURCE_MODE: ${{ inputs.source_mode }}
         run: |
-          args=(explore --mode "$EXPLORATION_MODE" --source-mode live)
+          args=(explore --mode "$EXPLORATION_MODE" --source-mode "$SOURCE_MODE")
           if [[ -n "$TARGET_RUN_ID" ]]; then
             args+=(--target-run-id "$TARGET_RUN_ID")
           fi

@@ -1,4 +1,4 @@
-.PHONY: install dev-backend dev-frontend explore explore-full test lint typecheck check
+.PHONY: install dev-backend dev-frontend migrate migration-status explore explore-full test lint typecheck check
 
 install:
 	python3 -m venv .venv
@@ -10,6 +10,12 @@ dev-backend:
 
 dev-frontend:
 	./scripts/frontend.sh dev
+
+migrate:
+	.venv/bin/python scripts/migrate.py apply
+
+migration-status:
+	.venv/bin/python scripts/migrate.py status
 
 explore:
 	./scripts/explore.sh incremental
