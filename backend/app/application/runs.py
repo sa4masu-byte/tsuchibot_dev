@@ -9,6 +9,10 @@ class RunConflictError(RuntimeError):
     pass
 
 
+class WorkflowDispatchError(RuntimeError):
+    pass
+
+
 class RunRepository(Protocol):
     async def add(self, run: ExplorationRun) -> None: ...
 
@@ -76,5 +80,9 @@ class StartExplorationRun:
             raise RunConflictError("an exploration run is already active")
         run = ExplorationRun.pending(mode, requested_by, target_run_id)
         await self.repository.add(run)
-        dispatch = await self.dispatcher.dispatch(run)
+        try:
+            dispatch = await self.dispatcher.dispatch(run)
+        except Exception as exc:
+            await self.repository.update(run.fail("dispatch_failed"))
+            raise WorkflowDispatchError("workflow dispatch was rejected") from exc
         return run, dispatch

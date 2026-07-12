@@ -16,7 +16,11 @@ from backend.app.api.schemas import (
     RunResponse,
     SessionResponse,
 )
-from backend.app.application.runs import RunConflictError, StartExplorationRun
+from backend.app.application.runs import (
+    RunConflictError,
+    StartExplorationRun,
+    WorkflowDispatchError,
+)
 from backend.app.infrastructure.security import SessionManager
 from backend.app.shared.config import Settings, get_settings
 
@@ -73,6 +77,8 @@ async def dispatch_run(
         run, dispatch = await use_case.execute(body.mode, identity.subject, body.target_run_id)
     except RunConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except WorkflowDispatchError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return DispatchResponse(
         run=RunResponse.from_domain(run),
         dispatch_accepted=dispatch.accepted,

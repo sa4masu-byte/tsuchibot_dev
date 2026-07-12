@@ -43,4 +43,9 @@ class GitHubActionsDispatcher:
             async with httpx.AsyncClient(timeout=15) as client:
                 response = await client.post(self._url, headers=headers, json=payload)
         response.raise_for_status()
-        return DispatchResult(accepted=True)
+        external_run_id = None
+        if response.status_code == 200:
+            body = response.json()
+            workflow_run_id = body.get("workflow_run_id")
+            external_run_id = str(workflow_run_id) if workflow_run_id is not None else None
+        return DispatchResult(accepted=True, external_run_id=external_run_id)

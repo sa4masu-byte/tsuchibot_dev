@@ -100,3 +100,13 @@ class ExplorationRun:
             progress_numerator=self.progress_denominator,
             finished_at=datetime.now(UTC),
         )
+
+    def fail(self, stage: str) -> "ExplorationRun":
+        if self.status.terminal:
+            raise ValueError("a terminal run cannot fail again")
+        return replace(
+            self,
+            status=RunStatus.FAILED,
+            current_stage=stage,
+            finished_at=datetime.now(UTC),
+        )

@@ -2,10 +2,12 @@ from uuid import uuid4
 
 import pytest
 from backend.app.application.runs import (
+    DispatchResult,
     InMemoryRunRepository,
     LocalWorkflowDispatcher,
     RunConflictError,
     StartExplorationRun,
+    WorkflowDispatchError,
 )
 from backend.app.domain.runs import ExplorationRun, RunMode, RunStatus
 from fastapi.testclient import TestClient
@@ -31,6 +33,22 @@ async def test_active_run_conflicts() -> None:
     await use_case.execute(RunMode.INCREMENTAL, "tester")
     with pytest.raises(RunConflictError):
         await use_case.execute(RunMode.FULL, "tester")
+
+
+class FailingDispatcher:
+    async def dispatch(self, run: ExplorationRun) -> DispatchResult:
+        raise RuntimeError("provider rejected dispatch")
+
+
+@pytest.mark.asyncio
+async def test_dispatch_failure_marks_run_failed() -> None:
+    repository = InMemoryRunRepository()
+    use_case = StartExplorationRun(repository, FailingDispatcher())
+    with pytest.raises(WorkflowDispatchError):
+        await use_case.execute(RunMode.INCREMENTAL, "tester")
+    runs = await repository.list()
+    assert runs[0].status is RunStatus.FAILED
+    assert runs[0].current_stage == "dispatch_failed"
 
 
 def test_dispatch_api_validates_and_prevents_overlap(client: TestClient) -> None:

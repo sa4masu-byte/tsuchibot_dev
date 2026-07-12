@@ -30,6 +30,7 @@ def install_error_handlers(app: FastAPI) -> None:
             401: "AUTHENTICATION_REQUIRED",
             404: "NOT_FOUND",
             409: "CONFLICT",
+            503: "SERVICE_UNAVAILABLE",
         }.get(exc.status_code, "REQUEST_ERROR")
         return JSONResponse(
             status_code=exc.status_code,
