@@ -18,6 +18,7 @@ def test_all_migrations_are_pending_for_empty_database() -> None:
         "0003_catalog.sql",
         "0004_ai_analysis.sql",
         "0005_mercari_research.sql",
+        "0006_visual_search_evidence.sql",
     ]
 
 

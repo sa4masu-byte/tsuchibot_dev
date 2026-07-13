@@ -1,6 +1,6 @@
 # Tsuchibot
 
-Tsuchibot は、メルカリでの再販売に向く仕入れ候補を探索し、根拠と不確実性を示す意思決定支援エージェントです。購入は自動化せず、利益計算と推奨判定は決定論的なコードで行います。
+Tsuchibot は、ジモティの適正価格設定と、別事業のEC小売向け仕入れ判断を、根拠と不確実性つきで支援するエージェントです。購入は自動化せず、利益計算と推奨判定は決定論的なコードで行います。
 
 ## ローカル起動
 
@@ -56,9 +56,22 @@ macOSでは、Finderから `run_exploration.command` をダブルクリックし
 事前に一度 `make install` を実行してください。バッチは `.venv` がない場合や引数が不正な場合、処理を始めずに理由を表示します。
 実サイトの商品を履歴として保存するため、`TSUCHIBOT_DATABASE_URL`とmigration適用済みPostgreSQLが必要です。2拠点は独立処理され、一方が失敗しても他方を継続します。CIやfixture確認では`TSUCHIBOT_SOURCE_MODE=disabled`を指定すると外部通信を行いません。
 
-## Mercari手動調査
+## Mercariブラウザ調査
 
-Mercariの許可されたlive取得方法が確定するまでは、`mercari-manual-v1` JSONから同じ正規化・Comparable判定・相場統計フローを実行できます。入力例は `backend/tests/fixtures/mercari/manual_research.json` です。
+通常のWebページ操作を低速・逐次で代行するローカルバッチを使用できます。最初にPlaywright用Chromiumを一度だけインストールします。
+
+```bash
+make install-browser
+./scripts/research-mercari-browser.sh \
+  --source-product-id <source-product-uuid> \
+  --run-id <exploration-run-uuid>
+```
+
+既定では確認可能なブラウザ画面を開きます。最新のGemini分析に十分な型番候補があればGoogle Lensを省略し、不明または低信頼の場合だけ先頭の商品画像でLens検索を行います。その後、Mercariの5段階検索を販売中・売却済み別に一件ずつ進めます。CAPTCHA、ログイン要求、アクセス制限は回避せず停止し、失敗時だけ`artifacts/browser/`へ診断画像を保存します。
+
+## Mercari手動入力フォールバック
+
+ブラウザ調査が利用できない場合は、`mercari-manual-v1` JSONから同じ正規化・Comparable判定・相場統計フローを実行できます。入力例は `backend/tests/fixtures/mercari/manual_research.json` です。
 
 ```bash
 ./scripts/research-mercari.sh \

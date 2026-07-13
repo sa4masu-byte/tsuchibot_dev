@@ -12,6 +12,7 @@ dependencies = [
   "beautifulsoup4>=4.13,<5",
   "fastapi>=0.116,<0.117",
   "httpx>=0.28,<0.29",
+  "playwright>=1.61,<2",
   "psycopg[binary,pool]>=3.2,<4",
   "pydantic-settings>=2.10,<3",
   "structlog>=25.4,<26",

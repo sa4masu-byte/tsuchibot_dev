@@ -51,9 +51,9 @@ remain unchanged as requested.
 
 ## Connected development environment (2026-07-13)
 
-- Supabase migrations `0001` through `0004` applied with checksum tracking.
-- Schema verification found 15 application tables, two Jimoty source definitions, and RLS enabled
-  on all 14 application-owned base tables (the migration ledger is separate).
+- Supabase migrations `0001` through `0006` applied with checksum tracking.
+- Schema verification found 26 application tables, two Jimoty source definitions, and RLS enabled
+  on all 26 application-owned base tables (the migration ledger is separate).
 - First live incremental collection completed for both locations: 20 source products, 20 source
   observations, 20 price observations, 20 availability observations, and 20 image references.
 - GitHub repository, CI, and the database repository secret are connected.
@@ -95,9 +95,20 @@ remain unchanged as requested.
 - Migration `0005_mercari_research.sql` creates research sessions, staged queries, executions,
   normalized marketplace listings, query links, comparable evidence and append-only decisions,
   price statistics, and shipping statistics. All nine research tables have RLS enabled.
-- A strict `mercari-manual-v1` JSON adapter and worker batch provide the required manual fallback
-  without making unapproved live Mercari calls. Source products can be linked to a new or existing
-  canonical product before research.
-- The migration was applied to the connected Supabase project with no pending migrations. Default
-  CI uses recorded evidence only; the exact permitted live Mercari access method remains an adapter
-  decision and does not change the implementation plan.
+- A strict `mercari-manual-v1` JSON adapter and worker batch provide the required manual fallback.
+  Source products can be linked to a new or existing canonical product before research.
+- A manually triggered, slow, sequential Playwright adapter now follows the public web workflow.
+  Strong Gemini model evidence skips visual search; uncertain products use the first Jimoty image
+  with Google Lens before staged Mercari sold and active searches.
+- Mercari search cards and detail pages provide title, price, status, listing-age upper bound,
+  condition, shipping responsibility, method, and explicit shipping amount. Listing time is used as
+  a conservative 90-day upper bound only when an exact sold timestamp is unavailable.
+- Migration `0006_visual_search_evidence.sql` stores append-only Lens titles, resolved model
+  candidates, confidence, source agreement, and failures without duplicating the source image URL.
+- CAPTCHA, login requirements, and access blocks are never bypassed. Browser runs stop or retain
+  partial evidence, and diagnostic screenshots are written only on failure.
+- A live local smoke run retained a Google Lens block as failure evidence, continued on the
+  independent Mercari origin, saved two query executions and eight comparables, and correctly
+  withheld a price estimate because no sold comparable met the inclusion rules.
+- Migrations are applied to the connected Supabase project with no pending migrations. Default CI
+  uses recorded HTML and JSON evidence only and does not call Google Lens or Mercari.

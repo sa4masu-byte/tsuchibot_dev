@@ -13,6 +13,7 @@ def test_migrations_are_ordered_and_parse_as_postgresql() -> None:
         "0003_catalog.sql",
         "0004_ai_analysis.sql",
         "0005_mercari_research.sql",
+        "0006_visual_search_evidence.sql",
     ]
     for migration in migrations:
         statements = parse_sql(migration.read_text())
@@ -40,3 +41,6 @@ def test_research_history_tables_have_append_only_guards() -> None:
         "research_shipping_statistics_append_only",
     ):
         assert f"create trigger {trigger}" in research_sql
+
+    visual_sql = (MIGRATIONS / "0006_visual_search_evidence.sql").read_text()
+    assert "create trigger visual_search_evidence_append_only" in visual_sql

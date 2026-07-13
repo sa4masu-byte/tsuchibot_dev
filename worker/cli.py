@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import json
 import os
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
@@ -13,16 +13,24 @@ from backend.app.application.catalog import (
     RunContext,
     SourceConfig,
 )
+from backend.app.application.identification import ResolveModelIdentity
 from backend.app.application.research import ConductMercariResearch, ResearchRequest
 from backend.app.domain.runs import RunMode
 from backend.app.domain.runs.models import ExplorationRun
 from backend.app.infrastructure.database import (
     PostgresCanonicalProductRepository,
     PostgresCatalogRepository,
+    PostgresResearchCandidateRepository,
     PostgresResearchRepository,
     PostgresRunRepository,
+    PostgresVisualSearchRepository,
 )
 from backend.app.infrastructure.sources import JimotySpotAdapter, load_manual_research_document
+from backend.app.infrastructure.sources.browser_research import (
+    BrowserMercariAdapter,
+    BrowserResearchSession,
+    GoogleLensBrowserAdapter,
+)
 from backend.app.shared.config import get_settings
 
 
@@ -180,6 +188,114 @@ async def research_manual(
     return 0 if outcome.status in {"completed", "partial_failure"} else 3
 
 
+async def research_browser(
+    source_product_id: str,
+    run_id: str,
+    *,
+    headless: bool,
+) -> int:
+    settings = get_settings()
+    if not settings.database_url:
+        print(
+            json.dumps(
+                {
+                    "status": "configuration_error",
+                    "message": "TSUCHIBOT_DATABASE_URL is required for browser research.",
+                },
+                ensure_ascii=False,
+            )
+        )
+        return 2
+    parsed_source_id = UUID(source_product_id)
+    parsed_run_id = UUID(run_id)
+    if await PostgresRunRepository(settings.database_url).get(parsed_run_id) is None:
+        raise KeyError(f"exploration run not found: {parsed_run_id}")
+    candidate = await PostgresResearchCandidateRepository(settings.database_url).get(
+        parsed_source_id
+    )
+    if candidate is None:
+        raise KeyError(f"source product not found: {parsed_source_id}")
+
+    try:
+        async with BrowserResearchSession(
+            headless=headless,
+            request_interval_seconds=settings.browser_request_interval_seconds,
+            navigation_timeout_seconds=settings.browser_navigation_timeout_seconds,
+        ) as browser_session:
+            identity = await ResolveModelIdentity(
+                GoogleLensBrowserAdapter(browser_session),
+                threshold=settings.model_visual_search_threshold,
+            ).execute(candidate.model_candidates, candidate.image_urls)
+            if identity.visual_search_used and candidate.image_urls:
+                await PostgresVisualSearchRepository(settings.database_url).save(
+                    parsed_source_id,
+                    parsed_run_id,
+                    candidate.image_urls[0],
+                    identity,
+                )
+            selected_models = tuple(
+                item.value for item in identity.candidates if item.confidence >= 0.55
+            )[:3]
+            target = replace(
+                candidate.target,
+                model_numbers=selected_models or candidate.target.model_numbers,
+            )
+            canonical_id = await PostgresCanonicalProductRepository(
+                settings.database_url
+            ).ensure_for_source(parsed_source_id, target)
+            outcome = await ConductMercariResearch(
+                BrowserMercariAdapter(
+                    browser_session,
+                    detail_limit_per_query=settings.browser_detail_limit_per_query,
+                ),
+                PostgresResearchRepository(settings.database_url),
+            ).execute(
+                ResearchRequest(
+                    canonical_product_id=canonical_id,
+                    run_id=parsed_run_id,
+                    target=target,
+                    researched_at=datetime.now(UTC),
+                    sold_limit=settings.mercari_sold_result_limit,
+                    active_limit=settings.mercari_active_result_limit,
+                    evidence_days=settings.mercari_evidence_days,
+                    minimum_sold_comparables=(
+                        settings.mercari_minimum_sold_comparables
+                    ),
+                    config_version="mercari-browser-v1",
+                )
+            )
+    except Exception as exc:
+        print(
+            json.dumps(
+                {
+                    "status": "browser_error",
+                    "error_category": type(exc).__name__,
+                    "message": "Browser research stopped without bypassing the page restriction.",
+                },
+                ensure_ascii=False,
+            )
+        )
+        return 4
+    print(
+        json.dumps(
+            {
+                "status": outcome.status,
+                "research_session_id": str(outcome.session_id),
+                "visual_search_used": identity.visual_search_used,
+                "visual_search_status": identity.status,
+                "model_candidates": [item.value for item in identity.candidates[:3]],
+                "query_count": len(outcome.executions),
+                "comparable_count": len(outcome.comparables),
+                "included_sold_count": outcome.price_statistics.included_count,
+                "sufficient_evidence": outcome.price_statistics.sufficient_evidence,
+                "median_price_jpy": outcome.price_statistics.median_price_jpy,
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0 if outcome.status in {"completed", "partial_failure"} else 3
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tsuchibot-worker")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -197,6 +313,10 @@ def build_parser() -> argparse.ArgumentParser:
     product_group.add_argument("--source-product-id")
     research_parser.add_argument("--run-id", required=True)
     research_parser.add_argument("--input", type=Path, required=True)
+    browser_parser = subparsers.add_parser("research-browser")
+    browser_parser.add_argument("--source-product-id", required=True)
+    browser_parser.add_argument("--run-id", required=True)
+    browser_parser.add_argument("--headless", action="store_true")
     return parser
 
 
@@ -214,6 +334,14 @@ def main() -> int:
                 args.source_product_id,
                 args.run_id,
                 args.input,
+            )
+        )
+    if args.command == "research-browser":
+        return asyncio.run(
+            research_browser(
+                args.source_product_id,
+                args.run_id,
+                headless=args.headless,
             )
         )
     return 2

@@ -145,3 +145,21 @@ def test_known_condition_mismatch_requires_review_and_is_not_priced() -> None:
     assert evidence[0].current_decision is ComparableDecision.REVIEW
     assert evidence[0].decision_reason == "condition_mismatch"
     assert evidence[0].included_in_price is False
+
+
+def test_recent_listing_time_is_conservative_upper_bound_for_unknown_sold_date() -> None:
+    now = datetime(2026, 7, 13, tzinfo=UTC)
+    sold = replace(
+        listing("unknown-sold-date", 20000, now),
+        sold_at=None,
+        listed_at=now - timedelta(days=30),
+    )
+
+    evidence = ComparableRanker().rank(
+        target(),
+        (sold,),
+        now - timedelta(days=90),
+        now,
+    )
+
+    assert evidence[0].included_in_price is True

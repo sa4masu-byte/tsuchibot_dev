@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     mercari_minimum_sold_comparables: int = Field(default=3, ge=1, le=50)
     mercari_sold_result_limit: int = Field(default=50, ge=1, le=50)
     mercari_active_result_limit: int = Field(default=50, ge=1, le=50)
+    browser_request_interval_seconds: float = Field(default=4, ge=2, le=60)
+    browser_detail_limit_per_query: int = Field(default=10, ge=1, le=20)
+    browser_navigation_timeout_seconds: float = Field(default=30, ge=5, le=120)
+    model_visual_search_threshold: float = Field(default=0.7, ge=0, le=1)
 
     @property
     def cors_origin_list(self) -> list[str]:

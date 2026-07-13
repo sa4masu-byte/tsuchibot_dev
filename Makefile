@@ -1,9 +1,12 @@
-.PHONY: install dev-backend dev-frontend migrate migration-status explore explore-full research-mercari test lint typecheck check
+.PHONY: install install-browser dev-backend dev-frontend migrate migration-status explore explore-full research-mercari research-mercari-browser test lint typecheck check
 
 install:
 	python3 -m venv .venv
 	.venv/bin/pip install -e '.[dev]'
 	pnpm --dir frontend install
+
+install-browser:
+	.venv/bin/python -m playwright install chromium
 
 dev-backend:
 	./scripts/dev-backend.sh
@@ -25,6 +28,9 @@ explore-full:
 
 research-mercari:
 	./scripts/research-mercari.sh $(ARGS)
+
+research-mercari-browser:
+	./scripts/research-mercari-browser.sh $(ARGS)
 
 test:
 	.venv/bin/pytest

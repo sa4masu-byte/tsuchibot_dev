@@ -4,6 +4,14 @@ from backend.app.domain.research.comparables import (
     calculate_shipping_statistics,
     default_evidence_period,
 )
+from backend.app.domain.research.identification import (
+    ModelIdentityCandidate,
+    VisualSearchHit,
+    extract_visual_model_candidates,
+    merge_model_candidates,
+    needs_visual_search,
+    normalize_model_number,
+)
 from backend.app.domain.research.models import (
     ComparableDecision,
     ComparableEvidence,
@@ -24,6 +32,7 @@ __all__ = [
     "ComparableRanker",
     "ListingStatus",
     "MarketplaceListing",
+    "ModelIdentityCandidate",
     "PriceStatistics",
     "ResearchTarget",
     "SearchQuery",
@@ -31,8 +40,13 @@ __all__ = [
     "ShippingResponsibility",
     "ShippingStatistics",
     "StagedQueryGenerator",
+    "VisualSearchHit",
     "calculate_price_statistics",
     "calculate_shipping_statistics",
     "default_evidence_period",
+    "extract_visual_model_candidates",
+    "merge_model_candidates",
+    "needs_visual_search",
     "normalize_query",
+    "normalize_model_number",
 ]

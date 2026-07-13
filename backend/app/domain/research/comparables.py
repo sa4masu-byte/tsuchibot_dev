@@ -132,10 +132,16 @@ class ComparableRanker:
             decision = ComparableDecision.REVIEW
             reason = "manual_review_required"
 
-        sold_in_period = (
-            listing.status is ListingStatus.SOLD
-            and listing.sold_at is not None
-            and evidence_period_start <= listing.sold_at <= evidence_period_end
+        sold_in_period = listing.status is ListingStatus.SOLD and (
+            (
+                listing.sold_at is not None
+                and evidence_period_start <= listing.sold_at <= evidence_period_end
+            )
+            or (
+                listing.sold_at is None
+                and listing.listed_at is not None
+                and evidence_period_start <= listing.listed_at <= evidence_period_end
+            )
         )
         included_in_price = decision is ComparableDecision.INCLUDE and sold_in_period
         included_in_shipping = (
