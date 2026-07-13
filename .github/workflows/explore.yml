@@ -32,6 +32,8 @@ jobs:
   explore:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      TSUCHIBOT_DATABASE_POOLER_HOST: aws-1-ap-northeast-2.pooler.supabase.com
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,14 +44,16 @@ jobs:
       - name: Validate retry target
         if: inputs.mode == 'retry_failed' && inputs.target_run_id == ''
         run: exit 1
-      - name: Apply database migrations
+      - name: Configure IPv4 database connection
         if: inputs.source_mode == 'live'
         env:
           TSUCHIBOT_DATABASE_URL: ${{ secrets.TSUCHIBOT_DATABASE_URL }}
+        run: python scripts/configure_github_database.py
+      - name: Apply database migrations
+        if: inputs.source_mode == 'live'
         run: python scripts/migrate.py apply
       - name: Run exploration worker
         env:
-          TSUCHIBOT_DATABASE_URL: ${{ secrets.TSUCHIBOT_DATABASE_URL }}
           TSUCHIBOT_GEMINI_API_KEY: ${{ secrets.TSUCHIBOT_GEMINI_API_KEY }}
           EXPLORATION_MODE: ${{ inputs.mode }}
           TARGET_RUN_ID: ${{ inputs.target_run_id }}
