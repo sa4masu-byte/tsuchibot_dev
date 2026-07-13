@@ -72,3 +72,7 @@ remain unchanged as requested.
 - Default tests use recorded JSON and mocked HTTP only. Live validation awaits a Gemini API key.
 - Migration `0004_ai_analysis.sql` adds canonical products, source links, immutable AI analysis
   history, idempotency inputs, validation state, token usage, latency, and failure metadata.
+- Live Gemini validation succeeded with the current stable `gemini-3.5-flash`; one real image
+  analysis was schema-valid and persisted with usage and latency metadata.
+- Generic CDN image responses are detected by JPEG/PNG/WebP signatures, and transient Gemini
+  408/429/selected-5xx responses use bounded exponential retries.

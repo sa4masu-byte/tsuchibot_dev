@@ -1,7 +1,7 @@
 version: phase1-v1
 ai:
   provider: gemini
-  product_analysis_model: gemini-2.5-flash
+  product_analysis_model: gemini-3.5-flash
   max_product_images: 5
   request_timeout_seconds: 60
   retry_count: 1

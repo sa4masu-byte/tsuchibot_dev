@@ -1,5 +1,7 @@
+import asyncio
 import base64
 import json
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import httpx
@@ -29,6 +31,8 @@ class GeminiVisionAdapter:
         client: httpx.AsyncClient | None = None,
         timeout_seconds: float = 60,
         max_images: int = 5,
+        max_retries: int = 2,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self._api_key = api_key
         self._model = model
@@ -36,6 +40,8 @@ class GeminiVisionAdapter:
         self._client = client
         self._timeout = timeout_seconds
         self._max_images = max_images
+        self._max_retries = max_retries
+        self._sleep = sleep
 
     async def analyse_product(self, request: ProductVisionRequest) -> ProductVisionResult:
         parts: list[dict[str, object]] = [
@@ -89,6 +95,8 @@ class GeminiVisionAdapter:
     async def _image_part(self, image_url: str) -> dict[str, object]:
         response = await self._get(image_url)
         content_type = response.headers.get("content-type", "").split(";", 1)[0]
+        if content_type == "application/octet-stream":
+            content_type = self._detected_image_type(response.content) or content_type
         if content_type not in {"image/jpeg", "image/png", "image/webp"}:
             raise VisionProviderError(f"unsupported image type: {content_type or 'unknown'}")
         if len(response.content) > 8 * 1024 * 1024:
@@ -114,24 +122,40 @@ class GeminiVisionAdapter:
             f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}:generateContent"
         )
         headers = {"x-goog-api-key": self._api_key, "Content-Type": "application/json"}
-        if self._client is not None:
-            response = await self._client.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self._timeout,
-            )
-        else:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
+        retryable = {408, 429, 500, 502, 503, 504}
+        for attempt in range(self._max_retries + 1):
+            if self._client is not None:
+                response = await self._client.post(
                     url,
                     headers=headers,
                     json=payload,
                     timeout=self._timeout,
                 )
-        response.raise_for_status()
-        return response
+            else:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        url,
+                        headers=headers,
+                        json=payload,
+                        timeout=self._timeout,
+                    )
+            if response.status_code in retryable and attempt < self._max_retries:
+                await self._sleep(2**attempt)
+                continue
+            response.raise_for_status()
+            return response
+        raise RuntimeError("unreachable retry state")
 
     @staticmethod
     def _integer(value: object) -> int | None:
         return value if isinstance(value, int) else None
+
+    @staticmethod
+    def _detected_image_type(content: bytes) -> str | None:
+        if content.startswith(b"\xff\xd8\xff"):
+            return "image/jpeg"
+        if content.startswith(b"\x89PNG\r\n\x1a\n"):
+            return "image/png"
+        if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+            return "image/webp"
+        return None

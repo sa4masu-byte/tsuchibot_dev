@@ -53,3 +53,51 @@ async def test_gemini_adapter_rejects_invalid_output() -> None:
             await adapter.analyse_product(
                 ProductVisionRequest("id", None, None, None, ("https://example.com/image.jpg",))
             )
+
+
+def test_image_type_detection_supports_generic_cdn_content_type() -> None:
+    assert GeminiVisionAdapter._detected_image_type(b"\xff\xd8\xffdata") == "image/jpeg"
+    assert GeminiVisionAdapter._detected_image_type(b"\x89PNG\r\n\x1a\ndata") == "image/png"
+    assert GeminiVisionAdapter._detected_image_type(b"RIFF1234WEBPdata") == "image/webp"
+    assert GeminiVisionAdapter._detected_image_type(b"unknown") is None
+
+
+@pytest.mark.asyncio
+async def test_gemini_adapter_retries_transient_provider_failure() -> None:
+    analysis = json.loads((FIXTURES / "product_analysis_valid.json").read_text())
+    post_calls = 0
+    delays: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal post_calls
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                content=b"\xff\xd8\xffdata",
+                headers={"content-type": "application/octet-stream"},
+            )
+        post_calls += 1
+        if post_calls == 1:
+            return httpx.Response(503)
+        return httpx.Response(
+            200,
+            json={"candidates": [{"content": {"parts": [{"text": json.dumps(analysis)}]}}]},
+        )
+
+    async def record_delay(delay: float) -> None:
+        delays.append(delay)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = GeminiVisionAdapter(
+            "secret",
+            "gemini-test",
+            PROMPT,
+            client,
+            max_retries=1,
+            sleep=record_delay,
+        )
+        await adapter.analyse_product(
+            ProductVisionRequest("id", None, None, None, ("https://example.com/image.jpg",))
+        )
+    assert post_calls == 2
+    assert delays == [1]
