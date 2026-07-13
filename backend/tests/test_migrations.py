@@ -11,6 +11,7 @@ def test_migrations_are_ordered_and_parse_as_postgresql() -> None:
         "0001_foundation.sql",
         "0002_seed_sources.sql",
         "0003_catalog.sql",
+        "0004_ai_analysis.sql",
     ]
     for migration in migrations:
         statements = parse_sql(migration.read_text())

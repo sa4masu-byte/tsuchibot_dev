@@ -16,6 +16,7 @@ def test_all_migrations_are_pending_for_empty_database() -> None:
         "0001_foundation.sql",
         "0002_seed_sources.sql",
         "0003_catalog.sql",
+        "0004_ai_analysis.sql",
     ]
 
 

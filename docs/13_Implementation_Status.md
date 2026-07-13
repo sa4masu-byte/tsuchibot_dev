@@ -70,3 +70,5 @@ remain unchanged as requested.
 - Gemini requests use JSON structured output, at most five images, supported MIME validation,
   per-image size limits, configurable stable model selection, and usage-token capture.
 - Default tests use recorded JSON and mocked HTTP only. Live validation awaits a Gemini API key.
+- Migration `0004_ai_analysis.sql` adds canonical products, source links, immutable AI analysis
+  history, idempotency inputs, validation state, token usage, latency, and failure metadata.
