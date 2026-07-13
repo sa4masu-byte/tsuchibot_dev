@@ -4,8 +4,14 @@ import Link from "next/link";
 import "./styles.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: "Tsuchibot",
-  description: "根拠が見える仕入れ判断エージェント",
+  description: "適正価格と仕入れ判断の根拠を確認するレビューシステム",
+  openGraph: {
+    title: "Tsuchibot",
+    description: "適正価格と仕入れ判断の根拠を、ひとつずつ確認する。",
+    images: [{ url: "/og.png", width: 1731, height: 909 }],
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -18,6 +24,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <span>Tsuchibot</span>
           </Link>
           <nav aria-label="メインナビゲーション">
+            <Link href="/products">候補</Link>
             <Link href="/runs">実行履歴</Link>
             <Link href="/login">ログイン</Link>
           </nav>

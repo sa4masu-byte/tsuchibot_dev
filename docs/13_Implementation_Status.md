@@ -129,3 +129,19 @@ remain unchanged as requested.
 - A connected-data smoke calculation preserved an evidence-limited Disney plush result as reject,
   with no invented sale price, shipping, profit, or overall score. Its latest corrected evidence
   input produced prospect 9 and confidence 29, with confirmation and risk reasons persisted.
+
+## Sprint 6 web-review baseline (2026-07-13)
+
+- Authenticated dashboard, candidate list, and product detail APIs expose the latest deterministic
+  recommendation, structured reasons, research statistics, and comparable evidence.
+- Product corrections and comparable exclude/restore commands require idempotency keys, reject
+  disallowed browser origins, append audit/history records, and recalculate the recommendation.
+- Active corrections can override confirmed product identity, model, condition, appropriate sale
+  price, and shipping inputs without changing the underlying AI analysis history.
+- Candidate and detail screens are mobile-first, preserve unknown values as `未確認`, and link back
+  to source evidence instead of presenting estimates without provenance.
+- Migration `0008_web_review.sql` adds RLS-protected correction history and comparable-command
+  idempotency. It was applied successfully to the connected Supabase project through the manual
+  GitHub workflow.
+- Backend lint, strict typing, and 80 tests pass. Frontend lint, type checking, four tests, and the
+  Next.js production build pass for dashboard, candidate list, and dynamic product-detail routes.

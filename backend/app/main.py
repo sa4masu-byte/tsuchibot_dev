@@ -10,13 +10,20 @@ from starlette.responses import Response
 
 from backend.app.api.errors import install_error_handlers
 from backend.app.api.routes import router
+from backend.app.application.recommendation import CalculateRecommendation
+from backend.app.application.review import RecalculateReviewedProduct
 from backend.app.application.runs import (
     InMemoryRunRepository,
     LocalWorkflowDispatcher,
     StartExplorationRun,
     WorkflowDispatcher,
 )
-from backend.app.infrastructure.database import PostgresRunRepository
+from backend.app.infrastructure.database import (
+    PostgresRecommendationCandidateRepository,
+    PostgresRecommendationRepository,
+    PostgresReviewRepository,
+    PostgresRunRepository,
+)
 from backend.app.infrastructure.github import GitHubActionsDispatcher
 from backend.app.infrastructure.security import SessionManager
 from backend.app.shared.config import get_settings
@@ -71,6 +78,18 @@ def create_app() -> FastAPI:
         settings.session_secret,
         settings.session_ttl_seconds,
     )
+    app.state.review_repository = None
+    app.state.recalculate_reviewed_product = None
+    if settings.database_url:
+        candidate_repository = PostgresRecommendationCandidateRepository(
+            settings.database_url
+        )
+        recommendation_repository = PostgresRecommendationRepository(settings.database_url)
+        app.state.review_repository = PostgresReviewRepository(settings.database_url)
+        app.state.recalculate_reviewed_product = RecalculateReviewedProduct(
+            candidate_repository,
+            CalculateRecommendation(recommendation_repository),
+        )
 
     @app.get("/", include_in_schema=False)
     async def root() -> RedirectResponse:
