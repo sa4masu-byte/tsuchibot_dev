@@ -135,6 +135,38 @@ class PostgresRunRepository:
                     ),
                 )
 
+    async def record_error(
+        self,
+        run_id: UUID,
+        stage: str,
+        source: str,
+        item_id: str | None,
+        category: str,
+        user_message: str,
+        *,
+        retryable: bool = False,
+        technical_detail: str | None = None,
+    ) -> None:
+        async with await AsyncConnection.connect(self._database_url) as connection:
+            await connection.execute(
+                """
+                insert into runs.errors (
+                    run_id, stage, source, item_id, category, retryable,
+                    user_message, technical_detail
+                ) values (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    run_id,
+                    stage,
+                    source,
+                    item_id,
+                    category,
+                    retryable,
+                    user_message,
+                    technical_detail,
+                ),
+            )
+
     @staticmethod
     def _values(run: ExplorationRun) -> Sequence[object]:
         return (

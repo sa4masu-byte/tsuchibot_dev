@@ -82,4 +82,15 @@ make install-browser
 
 既存のCanonical Productを使う場合は`--source-product-id`を`--canonical-product-id`へ置き換えます。処理は段階検索、listing ID重複統合、特殊出品判定、直近90日の売却済み3件ルール、価格・送料統計を履歴として保存します。自動購入は行いません。
 
+`--source-product-id`を指定したMercari調査は、保存後に決定論的な推奨計算まで続けます。保存済みの調査証拠だけを再計算する場合は次を実行します。
+
+```bash
+./scripts/recommend.sh \
+  --source-product-id <source-product-uuid> \
+  --run-id <exploration-run-uuid> \
+  --research-session-id <research-session-uuid>
+```
+
+手数料、送料fallback、予想利益、2種類の利益率、90日販売見込み、信頼度、総合スコア、4段階分類はコードで計算されます。同一入力と同一スコア版の再実行は同じ履歴を返します。証拠不足時は価格や送料を補完せず、確認事項とリスクを構造化して保存します。
+
 仕様は [`docs/`](docs/) を参照してください。開発上の必須ルールは [`CODEX.md`](CODEX.md) にあります。

@@ -51,9 +51,9 @@ remain unchanged as requested.
 
 ## Connected development environment (2026-07-13)
 
-- Supabase migrations `0001` through `0006` applied with checksum tracking.
-- Schema verification found 26 application tables, two Jimoty source definitions, and RLS enabled
-  on all 26 application-owned base tables (the migration ledger is separate).
+- Supabase migrations `0001` through `0007` applied with checksum tracking.
+- Schema verification found 30 application tables, two Jimoty source definitions, and RLS enabled
+  on all 30 application-owned base tables (the migration ledger is separate).
 - First live incremental collection completed for both locations: 20 source products, 20 source
   observations, 20 price observations, 20 availability observations, and 20 image references.
 - GitHub repository, CI, and the database repository secret are connected.
@@ -112,3 +112,20 @@ remain unchanged as requested.
   withheld a price estimate because no sold comparable met the inclusion rules.
 - Migrations are applied to the connected Supabase project with no pending migrations. Default CI
   uses recorded HTML and JSON evidence only and does not call Google Lens or Mercari.
+
+## Sprint 5 deterministic-recommendation baseline (2026-07-13)
+
+- Versioned integer-yen fee, sourcing-cost, shipping fallback, profit, return-on-cost, and sales
+  margin calculators are isolated from AI and external adapters.
+- `phase1-scores-v1` deterministically calculates the 90-day sales-prospect heuristic, confidence,
+  and overall sourcing score with a structured component for each material input or deduction.
+- `phase1-thresholds-v1` applies the documented JPY 300/500/1,000 profit thresholds, prospect and
+  confidence gates, comparable sufficiency, unresolved risks, and four recommendation tiers.
+- Migration `0007_recommendations.sql` creates append-only recommendation snapshots, structured
+  reason components, quantity-one-through-four evaluations, active versioned configuration, RLS,
+  idempotency, audit events, and run metrics.
+- Browser and source-linked manual Mercari research calculate a recommendation after persistence;
+  `scripts/recommend.sh` recalculates from an existing evidence snapshot without live access.
+- A connected-data smoke calculation preserved an evidence-limited Disney plush result as reject,
+  with no invented sale price, shipping, profit, or overall score. Its latest corrected evidence
+  input produced prospect 9 and confidence 29, with confirmation and risk reasons persisted.

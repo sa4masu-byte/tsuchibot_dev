@@ -454,6 +454,43 @@ sales_prospect_score >= 70
 
 Insufficient evidence may force downgrade.
 
+## Phase 1 Recommendation Formula (`phase1-v1`)
+
+All monetary calculations use integer yen. The standard Mercari fee uses a versioned 10% rule and
+rounds fractional yen down. Shipping follows same-product median, similar-product median, exact
+method mapping, then unknown. Unknown price or shipping never becomes zero for profit calculation.
+The July 2026 defaults were verified against the official
+[Mercari fee guide](https://help.jp.mercari.com/guide/articles/65/) and
+[Mercari shipping guide](https://help.jp.mercari.com/guide/articles/652/). Oversized specialist
+shipping remains an unresolved risk rather than reusing the standard fee assumption confidently.
+
+The sales-prospect score is a 0–100 heuristic, not a probability:
+
+- sold volume within the evidence period: 30 points, capped at 10 sales;
+- retrieved-evidence sold-rate: 30 points;
+- average comparable similarity: 20 points;
+- price competitiveness: 10 points;
+- seasonality: 5 points;
+- hypothesis evidence: 3 points;
+- EC delivery evidence: 2 points.
+
+Only non-excluded sold evidence with a sold timestamp, or a conservative listing-time upper bound,
+inside the configured evidence period contributes to sold volume and sold rate.
+
+Confidence weights are identity 20, model 15, sufficient comparable count 25, comparable similarity
+15, price dispersion 10, condition 5, shipping 5, and authenticity 5. Missing evidence contributes
+zero rather than a neutral assumption.
+
+Overall sourcing score weights are profit 25, return on cost 20, sales prospect 25, confidence 20,
+and research priority 10, with 15 points removed per major unresolved risk up to 30 points.
+
+Strong recommendation requires at least JPY 1,000 profit, 50% return on cost, sales prospect 70,
+confidence 80, sufficient comparables, and no major risk. Recommendation requires at least JPY 500
+profit, sales prospect 70, confidence 65, sufficient comparables, and no major risk. Profit of at
+least JPY 300 may remain a candidate. Missing calculable profit or profit below JPY 300 is rejected
+with structured confirmation or negative reasons; technical research failure remains a separate
+research status.
+
 ---
 
 # 6. State Machines

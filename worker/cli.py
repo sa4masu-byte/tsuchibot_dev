@@ -14,12 +14,19 @@ from backend.app.application.catalog import (
     SourceConfig,
 )
 from backend.app.application.identification import ResolveModelIdentity
+from backend.app.application.recommendation import (
+    CalculateRecommendation,
+    RecommendationRecord,
+    RecommendationRequest,
+)
 from backend.app.application.research import ConductMercariResearch, ResearchRequest
 from backend.app.domain.runs import RunMode
 from backend.app.domain.runs.models import ExplorationRun
 from backend.app.infrastructure.database import (
     PostgresCanonicalProductRepository,
     PostgresCatalogRepository,
+    PostgresRecommendationCandidateRepository,
+    PostgresRecommendationRepository,
     PostgresResearchCandidateRepository,
     PostgresResearchRepository,
     PostgresRunRepository,
@@ -32,6 +39,79 @@ from backend.app.infrastructure.sources.browser_research import (
     GoogleLensBrowserAdapter,
 )
 from backend.app.shared.config import get_settings
+
+
+async def calculate_saved_recommendation(
+    source_product_id: UUID,
+    run_id: UUID,
+    research_session_id: UUID | None = None,
+) -> RecommendationRecord:
+    settings = get_settings()
+    if not settings.database_url:
+        raise RuntimeError("TSUCHIBOT_DATABASE_URL is required for recommendation persistence")
+    candidate = await PostgresRecommendationCandidateRepository(settings.database_url).get(
+        source_product_id,
+        run_id,
+        research_session_id,
+    )
+    if candidate is None:
+        raise KeyError("recommendation inputs were not found for the requested product and run")
+    return await CalculateRecommendation(
+        PostgresRecommendationRepository(settings.database_url)
+    ).execute(
+        RecommendationRequest(
+            canonical_product_id=candidate.canonical_product_id,
+            source_product_id=candidate.source_product_id,
+            research_session_id=candidate.research_session_id,
+            run_id=candidate.run_id,
+            inputs=candidate.inputs,
+            policy=candidate.policy,
+            calculated_at=datetime.now(UTC),
+        )
+    )
+
+
+def recommendation_summary(record: RecommendationRecord | None) -> dict[str, object]:
+    if record is None:
+        return {}
+    return {
+        "recommendation_id": str(record.id),
+        "recommendation_tier": record.result.tier.value,
+        "expected_profit_jpy": record.result.expected_profit_jpy,
+        "return_on_cost": (
+            str(record.result.return_on_cost) if record.result.return_on_cost is not None else None
+        ),
+        "sales_prospect_score": record.result.sales_prospect_score,
+        "confidence_score": record.result.confidence_score,
+        "overall_sourcing_score": record.result.overall_sourcing_score,
+    }
+
+
+async def calculate_recommendation_soft(
+    source_product_id: UUID,
+    run_id: UUID,
+    research_session_id: UUID,
+    run_repository: PostgresRunRepository,
+) -> tuple[RecommendationRecord | None, str]:
+    try:
+        return (
+            await calculate_saved_recommendation(
+                source_product_id,
+                run_id,
+                research_session_id,
+            ),
+            "completed",
+        )
+    except Exception as exc:
+        await run_repository.record_error(
+            run_id,
+            "calculating_recommendation",
+            "deterministic_recommendation",
+            str(source_product_id),
+            type(exc).__name__,
+            "Recommendation calculation failed; completed research evidence was retained.",
+        )
+        return None, "failed"
 
 
 async def explore(mode: RunMode, target_run_id: str | None, source_mode: str) -> int:
@@ -171,6 +251,16 @@ async def research_manual(
             minimum_sold_comparables=settings.mercari_minimum_sold_comparables,
         )
     )
+    recommendation, recommendation_status = (
+        await calculate_recommendation_soft(
+            UUID(source_product_id),
+            parsed_run_id,
+            outcome.session_id,
+            PostgresRunRepository(settings.database_url),
+        )
+        if source_product_id
+        else (None, "skipped")
+    )
     print(
         json.dumps(
             {
@@ -181,6 +271,8 @@ async def research_manual(
                 "included_sold_count": outcome.price_statistics.included_count,
                 "sufficient_evidence": outcome.price_statistics.sufficient_evidence,
                 "median_price_jpy": outcome.price_statistics.median_price_jpy,
+                **recommendation_summary(recommendation),
+                "recommendation_status": recommendation_status,
             },
             ensure_ascii=False,
         )
@@ -276,6 +368,12 @@ async def research_browser(
             )
         )
         return 4
+    recommendation, recommendation_status = await calculate_recommendation_soft(
+        parsed_source_id,
+        parsed_run_id,
+        outcome.session_id,
+        PostgresRunRepository(settings.database_url),
+    )
     print(
         json.dumps(
             {
@@ -289,6 +387,8 @@ async def research_browser(
                 "included_sold_count": outcome.price_statistics.included_count,
                 "sufficient_evidence": outcome.price_statistics.sufficient_evidence,
                 "median_price_jpy": outcome.price_statistics.median_price_jpy,
+                **recommendation_summary(recommendation),
+                "recommendation_status": recommendation_status,
             },
             ensure_ascii=False,
         )
@@ -317,6 +417,10 @@ def build_parser() -> argparse.ArgumentParser:
     browser_parser.add_argument("--source-product-id", required=True)
     browser_parser.add_argument("--run-id", required=True)
     browser_parser.add_argument("--headless", action="store_true")
+    recommendation_parser = subparsers.add_parser("recommend")
+    recommendation_parser.add_argument("--source-product-id", required=True)
+    recommendation_parser.add_argument("--run-id", required=True)
+    recommendation_parser.add_argument("--research-session-id")
     return parser
 
 
@@ -344,6 +448,16 @@ def main() -> int:
                 headless=args.headless,
             )
         )
+    if args.command == "recommend":
+        record = asyncio.run(
+            calculate_saved_recommendation(
+                UUID(args.source_product_id),
+                UUID(args.run_id),
+                UUID(args.research_session_id) if args.research_session_id else None,
+            )
+        )
+        print(json.dumps(recommendation_summary(record), ensure_ascii=False))
+        return 0
     return 2
 
 

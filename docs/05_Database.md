@@ -364,7 +364,7 @@ Append-only.
 | estimated_sale_price_jpy | integer nullable |
 | estimated_shipping_jpy | integer nullable |
 | mercari_fee_jpy | integer nullable |
-| sourcing_cost_jpy | integer |
+| sourcing_cost_jpy | integer nullable | unknown is never stored as zero |
 | expected_profit_jpy | integer nullable |
 | return_on_cost | numeric nullable |
 | sales_margin | numeric nullable |
@@ -380,6 +380,10 @@ Append-only.
 | created_at | timestamptz |
 
 Append-only.
+
+The implemented unique key `(source_product_id, evidence_snapshot_hash, scoring_version)` makes
+same-input recalculation idempotent while allowing new versions after evidence, price, correction,
+or configuration changes.
 
 ## `recommendation.reason_components`
 

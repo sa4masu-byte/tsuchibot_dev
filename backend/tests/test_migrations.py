@@ -14,6 +14,7 @@ def test_migrations_are_ordered_and_parse_as_postgresql() -> None:
         "0004_ai_analysis.sql",
         "0005_mercari_research.sql",
         "0006_visual_search_evidence.sql",
+        "0007_recommendations.sql",
     ]
     for migration in migrations:
         statements = parse_sql(migration.read_text())
@@ -44,3 +45,11 @@ def test_research_history_tables_have_append_only_guards() -> None:
 
     visual_sql = (MIGRATIONS / "0006_visual_search_evidence.sql").read_text()
     assert "create trigger visual_search_evidence_append_only" in visual_sql
+
+    recommendation_sql = (MIGRATIONS / "0007_recommendations.sql").read_text()
+    for trigger in (
+        "recommendations_append_only",
+        "recommendation_reasons_append_only",
+        "recommendation_quantities_append_only",
+    ):
+        assert f"create trigger {trigger}" in recommendation_sql

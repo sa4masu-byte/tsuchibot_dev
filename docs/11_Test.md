@@ -18,6 +18,10 @@
 
 Fee、Sourcing cost、Profit、Margin、中央値・四分位、Shipping fallback、Sold-rate、Sales prospect、Confidence、Tier、Duplicate、Price change、Manual override、Quantity 1〜4、Inventory残数。
 
+Recommendation tests must also cover fee floor rounding, same/similar/method shipping precedence,
+unknown financial inputs, insufficient-comparable downgrade, structured reasons, all four quantity
+evaluations, and same-input/scoring-version idempotency.
+
 ## 4. Application Tests
 
 通常Run、ジモティー片側失敗、Gemini一部失敗、Mercari調査不能、EC代替探索、Full rerun、Retry failed、Comparable除外後再計算、Correction後再調査。

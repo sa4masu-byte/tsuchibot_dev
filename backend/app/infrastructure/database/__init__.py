@@ -4,6 +4,11 @@ from backend.app.infrastructure.database.postgres_canonical import (
     PostgresCanonicalProductRepository,
 )
 from backend.app.infrastructure.database.postgres_catalog import PostgresCatalogRepository
+from backend.app.infrastructure.database.postgres_recommendation import (
+    PostgresRecommendationCandidateRepository,
+    PostgresRecommendationRepository,
+    RecommendationCandidate,
+)
 from backend.app.infrastructure.database.postgres_research import PostgresResearchRepository
 from backend.app.infrastructure.database.postgres_research_candidate import (
     PostgresResearchCandidateRepository,
@@ -23,6 +28,9 @@ __all__ = [
     "PostgresRunRepository",
     "PostgresVisualSearchRepository",
     "PostgresResearchRepository",
+    "PostgresRecommendationCandidateRepository",
+    "PostgresRecommendationRepository",
+    "RecommendationCandidate",
     "PostgresResearchCandidateRepository",
     "ProductResearchCandidate",
     "InMemoryResearchRepository",

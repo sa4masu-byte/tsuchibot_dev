@@ -25,7 +25,36 @@ mercari:
   sold_result_limit: 50
   active_result_limit: 50
 recommendation:
+  config_version: phase1-v1
   sales_prospect_threshold: 70
+  fee:
+    version: mercari-standard-2026-07
+    rate_basis_points: 1000
+    rounding: floor
+  shipping:
+    version: mercari-shipping-2026-07
+    standard_by_method:
+      ネコポス: 210
+      宅急便コンパクト: 520
+      宅急便60: 750
+      宅急便80: 850
+      宅急便100: 1050
+      宅急便120: 1200
+      宅急便140: 1450
+      宅急便160: 1700
+      宅急便180: 2100
+      宅急便200: 2500
+  scoring:
+    version: phase1-scores-v1
+    maximum_sold_volume: 10
+  thresholds:
+    version: phase1-thresholds-v1
+    minimum_candidate_profit_jpy: 300
+    recommended_profit_jpy: 500
+    strong_profit_jpy: 1000
+    recommended_confidence_threshold: 65
+    strong_confidence_threshold: 80
+    strong_return_on_cost: 0.5
 ec:
   source_order: [amazon, rakuten, aliexpress, shein]
   overseas_delivery_days_max: 7
