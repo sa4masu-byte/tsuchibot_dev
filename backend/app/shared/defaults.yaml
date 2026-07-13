@@ -1,4 +1,10 @@
 version: phase1-v1
+ai:
+  provider: gemini
+  product_analysis_model: gemini-2.5-flash
+  max_product_images: 5
+  request_timeout_seconds: 60
+  retry_count: 1
 business:
   monthly_profit_target_jpy: 30000
   monthly_sales_target: 60

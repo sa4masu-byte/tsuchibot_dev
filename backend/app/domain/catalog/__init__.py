@@ -1,3 +1,4 @@
+from backend.app.domain.catalog.analysis import ProductAnalysis
 from backend.app.domain.catalog.duplicates import (
     DuplicateDecision,
     DuplicateDecisionKind,
@@ -22,4 +23,5 @@ __all__ = [
     "DuplicateDecision",
     "DuplicateDecisionKind",
     "DuplicateDetectionService",
+    "ProductAnalysis",
 ]

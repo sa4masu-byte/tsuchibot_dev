@@ -1,0 +1,18 @@
+{
+  "schema_version": "product-analysis-v1",
+  "category": {"value": "jigsaw_puzzle", "confidence": 0.94},
+  "manufacturer": {"value": "Springbok", "confidence": 0.78},
+  "brand": {"value": "Springbok", "confidence": 0.78},
+  "model_number_candidates": [],
+  "visible_text": [{"text": "SIX GREAT AMERICAN QUILTS", "location_hint": "packaging"}],
+  "character": {"value": null, "confidence": 0.99},
+  "is_new": {"value": true, "confidence": 0.82},
+  "condition": {"value": "good", "confidence": 0.7},
+  "condition_observations": [{"code": "SEALED_INNER_BAG", "severity": 0, "evidence": "inner bag appears sealed"}],
+  "dirt_severity": 0.05,
+  "size_class": {"value": "medium", "confidence": 0.65},
+  "apparent_recency": {"value": "older", "confidence": 0.55},
+  "original_price_band_jpy": {"min": null, "max": null, "confidence": 0.1},
+  "search_terms": ["Springbok SIX GREAT AMERICAN QUILTS puzzle"],
+  "uncertainties": ["manufacture year is not visible"]
+}

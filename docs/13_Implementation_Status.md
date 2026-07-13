@@ -45,7 +45,7 @@ Implemented without changing the roadmap or domain calculation plan:
 - Worker integration for independent two-location collection and partial-failure completion.
 - Recorded HTML fixtures and contract tests; default CI remains disconnected from live Jimoty.
 
-The project background now records that the user manages Jimoty operations and uses the system for
+The project background now ＿records that the user manages Jimoty operations and uses the system for
 appropriate price-setting research. Requirements, architecture, roadmap, and implementation order
 remain unchanged as requested.
 
@@ -58,3 +58,15 @@ remain unchanged as requested.
   observations, 20 price observations, 20 availability observations, and 20 image references.
 - GitHub repository and CI connected; live exploration still requires the database connection to be
   registered as the repository secret `TSUCHIBOT_DATABASE_URL`.
+
+## Sprint 3 structured-analysis baseline (2026-07-13)
+
+- Strict `product-analysis-v1` Pydantic schema with explicit unknowns, bounded confidences and
+  severities, model-number candidates, visible text, condition evidence, price bands, search terms,
+  and uncertainty notes.
+- Unexpected financial or recommendation fields are rejected at validation time.
+- Version-controlled prompt explicitly prohibits guessing and deterministic business calculations.
+- Replaceable `VisionProvider` application port and Gemini HTTP adapter.
+- Gemini requests use JSON structured output, at most five images, supported MIME validation,
+  per-image size limits, configurable stable model selection, and usage-token capture.
+- Default tests use recorded JSON and mocked HTTP only. Live validation awaits a Gemini API key.

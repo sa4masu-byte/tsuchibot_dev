@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     github_workflow: str = "explore.yml"
     jimoty_max_pages: int = Field(default=1, ge=1, le=20)
     jimoty_request_interval_seconds: float = Field(default=1.0, ge=0.5, le=60)
+    gemini_api_key: str | None = None
+    gemini_product_analysis_model: str = "gemini-2.5-flash"
+    gemini_timeout_seconds: float = Field(default=60, ge=1, le=180)
 
     @property
     def cors_origin_list(self) -> list[str]:
