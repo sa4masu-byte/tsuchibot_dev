@@ -28,6 +28,19 @@ def _median(values: list[int]) -> int | None:
     return round(float(median(values))) if values else None
 
 
+def _effective_listing_price(row: dict[str, Any]) -> int:
+    attributes = dict(row.get("normalized_attributes") or {})
+    unit_count = attributes.get("bundle_unit_count")
+    if (
+        attributes.get("is_bundle") is True
+        and isinstance(unit_count, int)
+        and not isinstance(unit_count, bool)
+        and unit_count > 0
+    ):
+        return round(int(row["displayed_price_jpy"]) / unit_count)
+    return int(row["displayed_price_jpy"])
+
+
 def _known_identity_confidence(analysis: ProductAnalysis | None) -> float:
     if analysis is None:
         return 0
@@ -109,8 +122,21 @@ class PostgresRecommendationCandidateRepository:
                     """
                 )
             ).fetchone()
+            correction_rows = await (
+                await connection.execute(
+                    """
+                    select field_name, corrected_value
+                    from catalog.product_corrections
+                    where canonical_product_id = %s and is_active
+                    """,
+                    (base["canonical_product_id"],),
+                )
+            ).fetchall()
         if policy_row is None:
             raise RuntimeError("active recommendation configuration was not found")
+        corrections = {
+            str(row["field_name"]): row["corrected_value"] for row in correction_rows
+        }
 
         analysis_payload = base["parsed_result"]
         analysis = (
@@ -128,6 +154,12 @@ class PostgresRecommendationCandidateRepository:
             else 0
         )
         condition_confidence = analysis.condition.confidence if analysis is not None else 0
+        if {"display_name", "category", "manufacturer", "brand"} & corrections.keys():
+            identity_confidence = 1
+        if "model_number" in corrections:
+            model_confidence = 1
+        if "condition" in corrections:
+            condition_confidence = 1
         branded_or_character = bool(
             analysis
             and (analysis.brand.value is not None or analysis.character.value is not None)
@@ -141,7 +173,9 @@ class PostgresRecommendationCandidateRepository:
 
         sold_prices = evidence["sold_prices"]
         active_prices = evidence["active_prices"]
-        estimated_sale_price = base["median_price_jpy"]
+        estimated_sale_price = corrections.get(
+            "estimated_sale_price_jpy", base["median_price_jpy"]
+        )
         active_median = _median(active_prices)
         price_competitiveness = None
         if estimated_sale_price and active_median is not None:
@@ -154,6 +188,14 @@ class PostgresRecommendationCandidateRepository:
             if model_similarity is not None and model_similarity >= 0.99
         ]
         all_shipping = [amount for amount, _ in shipping_values]
+        corrected_shipping = corrections.get("estimated_shipping_jpy")
+        same_shipping_median = _median(same_shipping)
+        same_shipping_count = len(same_shipping)
+        shipping_confidence = float(base["shipping_confidence"] or 0)
+        if corrected_shipping is not None:
+            same_shipping_median = int(corrected_shipping)
+            same_shipping_count = 1
+            shipping_confidence = 1
         policy = _policy_from_payload(
             str(policy_row["version"]),
             dict(policy_row["payload"]),
@@ -167,14 +209,14 @@ class PostgresRecommendationCandidateRepository:
             estimated_sale_price_jpy=(
                 int(estimated_sale_price) if estimated_sale_price is not None else None
             ),
-            same_product_shipping_median_jpy=_median(same_shipping),
-            same_product_shipping_count=len(same_shipping),
+            same_product_shipping_median_jpy=same_shipping_median,
+            same_product_shipping_count=same_shipping_count,
             similar_product_shipping_median_jpy=_median(all_shipping),
             similar_product_shipping_count=len(all_shipping),
             shipping_method=(
                 str(base["shipping_method"]) if base["shipping_method"] else None
             ),
-            shipping_evidence_confidence=float(base["shipping_confidence"] or 0),
+            shipping_evidence_confidence=shipping_confidence,
             sold_count=len(sold_prices),
             active_count=len(active_prices),
             included_sold_comparable_count=int(base["included_count"]),
@@ -266,6 +308,7 @@ class PostgresRecommendationCandidateRepository:
             select
                 ml.status,
                 ml.displayed_price_jpy,
+                ml.normalized_attributes,
                 ml.estimated_shipping_jpy,
                 ml.sold_at,
                 ml.listed_at,
@@ -281,7 +324,7 @@ class PostgresRecommendationCandidateRepository:
         )
         rows = await cursor.fetchall()
         sold_prices = [
-            int(row["displayed_price_jpy"])
+            _effective_listing_price(row)
             for row in rows
             if row["status"] == "sold"
             and (row["sold_at"] is not None or row["listed_at"] is not None)
@@ -291,7 +334,7 @@ class PostgresRecommendationCandidateRepository:
             and row["current_decision"] != "exclude"
         ]
         active_prices = [
-            int(row["displayed_price_jpy"])
+            _effective_listing_price(row)
             for row in rows
             if row["status"] == "active" and row["current_decision"] != "exclude"
         ]
