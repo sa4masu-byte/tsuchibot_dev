@@ -79,3 +79,25 @@ remain unchanged as requested.
   analysis was schema-valid and persisted with usage and latency metadata.
 - Generic CDN image responses are detected by JPEG/PNG/WebP signatures, and transient Gemini
   408/429/selected-5xx responses use bounded exponential retries.
+
+## Sprint 4 Mercari research baseline (2026-07-13)
+
+- Deterministic five-stage query generation covering exact model, manufacturer and model, series
+  and product type, manufacturer and product type, and similar-product terms.
+- Unified sold and active listing model with listing-ID deduplication, 50-result limits per status,
+  query provenance, parser version, and explicit shipping evidence.
+- Comparable ranking records model, title, condition, and attribute similarity independently before
+  applying bundle, junk, reserved-listing, evidence-period, and manual-review rules.
+- Price evidence uses included sold comparables from the previous 90 days. Median, lower quartile,
+  range, dispersion, snapshot hash, and the three-comparable sufficiency result are persisted.
+- Shipping evidence records the median explicit or normalized amount, dominant method, count,
+  confidence, and reason separately from later recommendation calculations.
+- Migration `0005_mercari_research.sql` creates research sessions, staged queries, executions,
+  normalized marketplace listings, query links, comparable evidence and append-only decisions,
+  price statistics, and shipping statistics. All nine research tables have RLS enabled.
+- A strict `mercari-manual-v1` JSON adapter and worker batch provide the required manual fallback
+  without making unapproved live Mercari calls. Source products can be linked to a new or existing
+  canonical product before research.
+- The migration was applied to the connected Supabase project with no pending migrations. Default
+  CI uses recorded evidence only; the exact permitted live Mercari access method remains an adapter
+  decision and does not change the implementation plan.

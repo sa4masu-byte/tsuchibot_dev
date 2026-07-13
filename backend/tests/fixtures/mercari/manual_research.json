@@ -1,0 +1,65 @@
+{
+  "schema_version": "mercari-manual-v1",
+  "target": {
+    "source_title": "Nintendo Switch HAC-001 本体",
+    "category": "ゲーム機",
+    "manufacturer": "任天堂",
+    "brand": "Nintendo",
+    "model_numbers": ["HAC-001"],
+    "series": "Nintendo Switch",
+    "product_type": "ゲーム機",
+    "condition": "good",
+    "search_terms": ["Nintendo Switch 本体", "HAC-001"]
+  },
+  "listings": [
+    {
+      "query_stage": "exact_model",
+      "external_listing_id": "m-fixture-1",
+      "canonical_url": "https://jp.mercari.com/item/m-fixture-1",
+      "title": "Nintendo Switch HAC-001 本体 中古",
+      "status": "sold",
+      "displayed_price_jpy": 20000,
+      "sold_at": "2026-07-01T00:00:00Z",
+      "condition": "good",
+      "shipping_method": "らくらくメルカリ便",
+      "shipping_responsibility": "seller",
+      "estimated_shipping_jpy": 750
+    },
+    {
+      "query_stage": "manufacturer_model",
+      "external_listing_id": "m-fixture-2",
+      "canonical_url": "https://jp.mercari.com/item/m-fixture-2",
+      "title": "Nintendo Switch HAC-001 本体",
+      "status": "sold",
+      "displayed_price_jpy": 22000,
+      "sold_at": "2026-06-20T00:00:00Z",
+      "condition": "good",
+      "shipping_method": "らくらくメルカリ便",
+      "shipping_responsibility": "seller",
+      "estimated_shipping_jpy": 750
+    },
+    {
+      "query_stage": "similar_product",
+      "external_listing_id": "m-fixture-3",
+      "canonical_url": "https://jp.mercari.com/item/m-fixture-3",
+      "title": "任天堂 Nintendo Switch HAC-001 ゲーム機",
+      "status": "sold",
+      "displayed_price_jpy": 24000,
+      "sold_at": "2026-06-10T00:00:00Z",
+      "condition": "good",
+      "shipping_method": "らくらくメルカリ便",
+      "shipping_responsibility": "seller",
+      "estimated_shipping_jpy": 750
+    },
+    {
+      "query_stage": "similar_product",
+      "external_listing_id": "m-fixture-active",
+      "canonical_url": "https://jp.mercari.com/item/m-fixture-active",
+      "title": "Nintendo Switch HAC-001 本体",
+      "status": "active",
+      "displayed_price_jpy": 25000,
+      "condition": "good",
+      "shipping_responsibility": "seller"
+    }
+  ]
+}

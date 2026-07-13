@@ -1,4 +1,4 @@
-.PHONY: install dev-backend dev-frontend migrate migration-status explore explore-full test lint typecheck check
+.PHONY: install dev-backend dev-frontend migrate migration-status explore explore-full research-mercari test lint typecheck check
 
 install:
 	python3 -m venv .venv
@@ -22,6 +22,9 @@ explore:
 
 explore-full:
 	./scripts/explore.sh full
+
+research-mercari:
+	./scripts/research-mercari.sh $(ARGS)
 
 test:
 	.venv/bin/pytest

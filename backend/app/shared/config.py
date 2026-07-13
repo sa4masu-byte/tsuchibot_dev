@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_product_analysis_model: str = "gemini-3.5-flash"
     gemini_timeout_seconds: float = Field(default=60, ge=1, le=180)
+    mercari_evidence_days: int = Field(default=90, ge=1, le=365)
+    mercari_minimum_sold_comparables: int = Field(default=3, ge=1, le=50)
+    mercari_sold_result_limit: int = Field(default=50, ge=1, le=50)
+    mercari_active_result_limit: int = Field(default=50, ge=1, le=50)
 
     @property
     def cors_origin_list(self) -> list[str]:

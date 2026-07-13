@@ -4,6 +4,7 @@ import json
 import os
 from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID
 
 from backend.app.application.catalog import (
@@ -12,13 +13,16 @@ from backend.app.application.catalog import (
     RunContext,
     SourceConfig,
 )
+from backend.app.application.research import ConductMercariResearch, ResearchRequest
 from backend.app.domain.runs import RunMode
 from backend.app.domain.runs.models import ExplorationRun
 from backend.app.infrastructure.database import (
+    PostgresCanonicalProductRepository,
     PostgresCatalogRepository,
+    PostgresResearchRepository,
     PostgresRunRepository,
 )
-from backend.app.infrastructure.sources import JimotySpotAdapter
+from backend.app.infrastructure.sources import JimotySpotAdapter, load_manual_research_document
 from backend.app.shared.config import get_settings
 
 
@@ -111,6 +115,71 @@ async def collect_live_catalog(mode: RunMode, target_run_id: str | None) -> int:
     return 0 if not partial_failure else 3
 
 
+async def research_manual(
+    canonical_product_id: str | None,
+    source_product_id: str | None,
+    run_id: str,
+    input_path: Path,
+) -> int:
+    settings = get_settings()
+    if not settings.database_url:
+        print(
+            json.dumps(
+                {
+                    "status": "configuration_error",
+                    "message": "TSUCHIBOT_DATABASE_URL is required for research persistence.",
+                },
+                ensure_ascii=False,
+            )
+        )
+        return 2
+    target, provider = load_manual_research_document(input_path)
+    parsed_run_id = UUID(run_id)
+    if await PostgresRunRepository(settings.database_url).get(parsed_run_id) is None:
+        raise KeyError(f"exploration run not found: {parsed_run_id}")
+    if canonical_product_id:
+        resolved_canonical_product_id = UUID(canonical_product_id)
+    elif source_product_id:
+        resolved_canonical_product_id = (
+            await PostgresCanonicalProductRepository(settings.database_url).ensure_for_source(
+                UUID(source_product_id),
+                target,
+            )
+        )
+    else:
+        raise ValueError("canonical_product_id or source_product_id is required")
+    outcome = await ConductMercariResearch(
+        provider,
+        PostgresResearchRepository(settings.database_url),
+    ).execute(
+        ResearchRequest(
+            canonical_product_id=resolved_canonical_product_id,
+            run_id=parsed_run_id,
+            target=target,
+            researched_at=datetime.now(UTC),
+            sold_limit=settings.mercari_sold_result_limit,
+            active_limit=settings.mercari_active_result_limit,
+            evidence_days=settings.mercari_evidence_days,
+            minimum_sold_comparables=settings.mercari_minimum_sold_comparables,
+        )
+    )
+    print(
+        json.dumps(
+            {
+                "status": outcome.status,
+                "research_session_id": str(outcome.session_id),
+                "query_count": len(outcome.executions),
+                "comparable_count": len(outcome.comparables),
+                "included_sold_count": outcome.price_statistics.included_count,
+                "sufficient_evidence": outcome.price_statistics.sufficient_evidence,
+                "median_price_jpy": outcome.price_statistics.median_price_jpy,
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0 if outcome.status in {"completed", "partial_failure"} else 3
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tsuchibot-worker")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -122,6 +191,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["disabled", "live"],
         default="disabled",
     )
+    research_parser = subparsers.add_parser("research-manual")
+    product_group = research_parser.add_mutually_exclusive_group(required=True)
+    product_group.add_argument("--canonical-product-id")
+    product_group.add_argument("--source-product-id")
+    research_parser.add_argument("--run-id", required=True)
+    research_parser.add_argument("--input", type=Path, required=True)
     return parser
 
 
@@ -132,6 +207,15 @@ def main() -> int:
         if mode is RunMode.RETRY_FAILED and not args.target_run_id:
             raise SystemExit("--target-run-id is required for retry_failed")
         return asyncio.run(explore(mode, args.target_run_id, args.source_mode))
+    if args.command == "research-manual":
+        return asyncio.run(
+            research_manual(
+                args.canonical_product_id,
+                args.source_product_id,
+                args.run_id,
+                args.input,
+            )
+        )
     return 2
 
 

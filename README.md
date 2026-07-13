@@ -56,4 +56,17 @@ macOSでは、Finderから `run_exploration.command` をダブルクリックし
 事前に一度 `make install` を実行してください。バッチは `.venv` がない場合や引数が不正な場合、処理を始めずに理由を表示します。
 実サイトの商品を履歴として保存するため、`TSUCHIBOT_DATABASE_URL`とmigration適用済みPostgreSQLが必要です。2拠点は独立処理され、一方が失敗しても他方を継続します。CIやfixture確認では`TSUCHIBOT_SOURCE_MODE=disabled`を指定すると外部通信を行いません。
 
+## Mercari手動調査
+
+Mercariの許可されたlive取得方法が確定するまでは、`mercari-manual-v1` JSONから同じ正規化・Comparable判定・相場統計フローを実行できます。入力例は `backend/tests/fixtures/mercari/manual_research.json` です。
+
+```bash
+./scripts/research-mercari.sh \
+  --source-product-id <source-product-uuid> \
+  --run-id <exploration-run-uuid> \
+  --input backend/tests/fixtures/mercari/manual_research.json
+```
+
+既存のCanonical Productを使う場合は`--source-product-id`を`--canonical-product-id`へ置き換えます。処理は段階検索、listing ID重複統合、特殊出品判定、直近90日の売却済み3件ルール、価格・送料統計を履歴として保存します。自動購入は行いません。
+
 仕様は [`docs/`](docs/) を参照してください。開発上の必須ルールは [`CODEX.md`](CODEX.md) にあります。

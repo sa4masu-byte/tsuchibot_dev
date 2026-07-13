@@ -12,6 +12,7 @@ def test_migrations_are_ordered_and_parse_as_postgresql() -> None:
         "0002_seed_sources.sql",
         "0003_catalog.sql",
         "0004_ai_analysis.sql",
+        "0005_mercari_research.sql",
     ]
     for migration in migrations:
         statements = parse_sql(migration.read_text())
@@ -26,3 +27,16 @@ def test_catalog_history_tables_have_append_only_guards() -> None:
         "availability_observations",
     ):
         assert f"create trigger {table}_append_only" in catalog_sql
+
+
+def test_research_history_tables_have_append_only_guards() -> None:
+    research_sql = (MIGRATIONS / "0005_mercari_research.sql").read_text()
+    for trigger in (
+        "research_search_queries_append_only",
+        "research_query_executions_append_only",
+        "research_query_listing_links_append_only",
+        "research_comparable_decisions_append_only",
+        "research_price_statistics_append_only",
+        "research_shipping_statistics_append_only",
+    ):
+        assert f"create trigger {trigger}" in research_sql
