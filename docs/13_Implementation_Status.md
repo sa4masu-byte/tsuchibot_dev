@@ -45,19 +45,21 @@ Implemented without changing the roadmap or domain calculation plan:
 - Worker integration for independent two-location collection and partial-failure completion.
 - Recorded HTML fixtures and contract tests; default CI remains disconnected from live Jimoty.
 
-The project background now ＿records that the user manages Jimoty operations and uses the system for
+The project background now records that the user manages Jimoty operations and uses the system for
 appropriate price-setting research. Requirements, architecture, roadmap, and implementation order
 remain unchanged as requested.
 
 ## Connected development environment (2026-07-13)
 
-- Supabase migrations `0001` through `0003` applied with checksum tracking.
+- Supabase migrations `0001` through `0004` applied with checksum tracking.
 - Schema verification found 15 application tables, two Jimoty source definitions, and RLS enabled
   on all 14 application-owned base tables (the migration ledger is separate).
 - First live incremental collection completed for both locations: 20 source products, 20 source
   observations, 20 price observations, 20 availability observations, and 20 image references.
-- GitHub repository and CI connected; live exploration still requires the database connection to be
-  registered as the repository secret `TSUCHIBOT_DATABASE_URL`.
+- GitHub repository, CI, and the database repository secret are connected.
+- GitHub Actions converts the Supabase direct URL to the project's IPv4-capable session-pooler URL
+  without logging the credential. A live Actions collection completed both locations with 10 items
+  each and no source errors, increasing source observations from 40 to 60.
 
 ## Sprint 3 structured-analysis baseline (2026-07-13)
 
@@ -69,7 +71,8 @@ remain unchanged as requested.
 - Replaceable `VisionProvider` application port and Gemini HTTP adapter.
 - Gemini requests use JSON structured output, at most five images, supported MIME validation,
   per-image size limits, configurable stable model selection, and usage-token capture.
-- Default tests use recorded JSON and mocked HTTP only. Live validation awaits a Gemini API key.
+- Default tests use recorded JSON and mocked HTTP only; the connected environment also has a
+  validated Gemini API key for explicit live checks.
 - Migration `0004_ai_analysis.sql` adds canonical products, source links, immutable AI analysis
   history, idempotency inputs, validation state, token usage, latency, and failure metadata.
 - Live Gemini validation succeeded with the current stable `gemini-3.5-flash`; one real image
