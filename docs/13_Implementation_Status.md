@@ -141,7 +141,7 @@ remain unchanged as requested.
 - Candidate and detail screens are mobile-first, preserve unknown values as `未確認`, and link back
   to source evidence instead of presenting estimates without provenance.
 - Migration `0008_web_review.sql` adds RLS-protected correction history and comparable-command
-  idempotency. It is locally syntax-tested; connected application is performed through the manual
-  GitHub workflow because the local value is not a PostgreSQL connection string.
+  idempotency. It was applied successfully to the connected Supabase project through the manual
+  GitHub workflow.
 - Backend lint, strict typing, and 80 tests pass. Frontend lint, type checking, four tests, and the
   Next.js production build pass for dashboard, candidate list, and dynamic product-detail routes.
