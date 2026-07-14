@@ -38,6 +38,8 @@ make migrate
 make migration-status
 ```
 
+ローカルにPostgreSQL接続文字列を置かない場合は、GitHub Actionsの手動`migrate` Workflowからschema更新だけを実行できます。探索は同時に開始されません。
+
 通常の差分探索は次のいずれかで開始できます。
 
 ```bash
@@ -94,5 +96,17 @@ make install-browser
 ```
 
 手数料、送料fallback、予想利益、2種類の利益率、90日販売見込み、信頼度、総合スコア、4段階分類はコードで計算されます。同一入力と同一スコア版の再実行は同じ履歴を返します。証拠不足時は価格や送料を補完せず、確認事項とリスクを構造化して保存します。
+
+## EC代替探索
+
+Jimotyの有用候補が設定数に届かない場合、Amazon、楽天、AliExpress、SHEINの順で代替探索できます。Phase 1は許可済みAPI資格情報を前提にせず、`ec-manual-v1` JSONを同じ隔離Adapterへ投入する手動fallbackを使用します。
+
+```bash
+./scripts/explore-ec.sh \
+  --run-id <exploration-run-uuid> \
+  --input backend/tests/fixtures/ec/manual_exploration.json
+```
+
+検索語は利益パターン、Mercari需要、Saleの順に重複排除し、既定20語までです。ポイントは参考表示だけで利益へ含めません。海外商品はバリエーション価格、7日以内の配送、商品評価、レビュー数、販売者評価、真贋、除外カテゴリを決定論的に検査します。対象商品はカタログへ保存され、その後のGemini・Mercari・Recommendationフローへ渡せます。購入操作は行いません。
 
 仕様は [`docs/`](docs/) を参照してください。開発上の必須ルールは [`CODEX.md`](CODEX.md) にあります。

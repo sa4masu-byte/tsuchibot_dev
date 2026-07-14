@@ -16,6 +16,7 @@ def test_migrations_are_ordered_and_parse_as_postgresql() -> None:
         "0006_visual_search_evidence.sql",
         "0007_recommendations.sql",
         "0008_web_review.sql",
+        "0009_ec_exploration.sql",
     ]
     for migration in migrations:
         statements = parse_sql(migration.read_text())
@@ -61,3 +62,18 @@ def test_web_review_migration_has_correction_history_and_rls() -> None:
     assert "create table catalog.product_corrections" in review_sql
     assert "idempotency_key text not null unique" in review_sql
     assert "alter table catalog.product_corrections enable row level security" in review_sql
+
+
+def test_ec_migration_has_append_only_evidence_and_rls() -> None:
+    ec_sql = (MIGRATIONS / "0009_ec_exploration.sql").read_text()
+    for table in ("exploration_sessions", "search_attempts", "offers", "offer_evaluations"):
+        assert f"create table ec.{table}" in ec_sql
+        assert f"alter table ec.{table} enable row level security" in ec_sql
+    for trigger in (
+        "ec_sessions_append_only",
+        "ec_attempts_append_only",
+        "ec_offers_append_only",
+        "ec_evaluations_append_only",
+    ):
+        assert f"create trigger {trigger}" in ec_sql
+    assert "'ec-phase1-v1'" in ec_sql

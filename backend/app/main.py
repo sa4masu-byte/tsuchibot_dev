@@ -19,6 +19,7 @@ from backend.app.application.runs import (
     WorkflowDispatcher,
 )
 from backend.app.infrastructure.database import (
+    PostgresECExplorationRepository,
     PostgresRecommendationCandidateRepository,
     PostgresRecommendationRepository,
     PostgresReviewRepository,
@@ -80,12 +81,16 @@ def create_app() -> FastAPI:
     )
     app.state.review_repository = None
     app.state.recalculate_reviewed_product = None
+    app.state.ec_review_repository = None
     if settings.database_url:
         candidate_repository = PostgresRecommendationCandidateRepository(
             settings.database_url
         )
         recommendation_repository = PostgresRecommendationRepository(settings.database_url)
         app.state.review_repository = PostgresReviewRepository(settings.database_url)
+        app.state.ec_review_repository = PostgresECExplorationRepository(
+            settings.database_url
+        )
         app.state.recalculate_reviewed_product = RecalculateReviewedProduct(
             candidate_repository,
             CalculateRecommendation(recommendation_repository),

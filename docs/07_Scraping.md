@@ -113,6 +113,13 @@ network、timeout、blocked、authentication、parsing、validation、rate_limit
 
 サイト制約で自動取得できない場合、URL、タイトル、価格、画像、送料、評価、配送日を手入力して同じ正規化モデルへ投入できるようにする。
 
+Phase 1のEC実装は`ec-manual-v1`を使用する。楽天は公式の商品検索APIが存在するがApp IDとAccess Keyを要し、Amazon Product Advertising API、AliExpress Open Platformも認証済み利用を前提とする。SHEIN Open Platformは出店者連携を中心とするため、許可済みの商品検索手段が確定するまではlive取得を行わない。
+
+- [Amazon Product Advertising API](https://webservices.amazon.co.jp/paapi5/documentation/api-reference.html)
+- [楽天市場商品検索API](https://webservice.rakuten.co.jp/documentation/ichiba-item-search)
+- [AliExpress Open Platform](https://developer.alibaba.com/docs/doc.htm?articleId=120688&docType=1&treeId=727)
+- [SHEIN Developer Platform](https://open.sheincorp.cn/)
+
 ## 16. Acceptance Criteria
 
 - 2拠点を独立取得できる。

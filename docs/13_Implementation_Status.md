@@ -145,3 +145,22 @@ remain unchanged as requested.
   GitHub workflow.
 - Backend lint, strict typing, and 80 tests pass. Frontend lint, type checking, four tests, and the
   Next.js production build pass for dashboard, candidate list, and dynamic product-detail routes.
+
+## Sprint 7 EC-exploration baseline (2026-07-14)
+
+- Amazon, Rakuten, AliExpress, and SHEIN are represented by isolated source adapters sharing a
+  strict `ec-manual-v1` fallback document; default tests and batches make no live EC requests.
+- The alternative exploration coordinator triggers below the configured useful-Jimoty threshold,
+  preserves source order, deduplicates up to 20 keywords in profit-pattern, Mercari-demand, then
+  sale-discount order, and isolates missing or failed sources.
+- Overseas policy deterministically checks selected-variant price, seven-day delivery, review
+  count, product rating, seller rating, authenticity support, and excluded product types.
+- Displayed price, sourcing shipping, definite coupon, points reference, original currency, and
+  sourcing cost remain separate. Points never reduce Phase 1 sourcing cost.
+- Eligible EC offers enter the existing catalog so Gemini, Mercari evidence, and deterministic
+  recommendation can continue without a separate calculation path.
+- Migration `0009_ec_exploration.sql` adds append-only sessions, source/query attempts, offers,
+  evaluations, RLS, indexes, audit/metrics, and versioned EC policy configuration. It is applied to
+  the connected Supabase project.
+- Authenticated EC history and evidence pages expose attempts, offers, sourcing costs, policy
+  outcomes, and structured rejection or confirmation reasons on mobile.

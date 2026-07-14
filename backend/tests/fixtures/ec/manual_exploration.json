@@ -1,0 +1,66 @@
+{
+  "schema_version": "ec-manual-v1",
+  "useful_jimoty_candidates": 1,
+  "profit_pattern_keywords": ["交換用 収納 ケース", "クラフト キット"],
+  "mercari_demand_keywords": ["収納 ケース"],
+  "sale_discount_keywords": ["在庫処分 小物"],
+  "offers": [
+    {
+      "source": "amazon",
+      "source_item_id": "B0TEST001",
+      "canonical_url": "https://www.amazon.co.jp/dp/B0TEST001",
+      "title": "無地の交換用収納ケース",
+      "displayed_price_jpy": 900,
+      "sourcing_shipping_jpy": 0,
+      "points_reference_jpy": 90,
+      "category": "収納",
+      "matched_keyword": "交換用 収納 ケース"
+    },
+    {
+      "source": "rakuten",
+      "source_item_id": "shop:item-1",
+      "canonical_url": "https://item.rakuten.co.jp/shop/item-1/",
+      "title": "無地クラフトキット",
+      "displayed_price_jpy": 1200,
+      "sourcing_shipping_jpy": 250,
+      "definite_coupon_jpy": 100,
+      "points_reference_jpy": 120,
+      "delivery_days": 2,
+      "shop_id": "shop",
+      "shop_rating": 4.7,
+      "matched_keyword": "クラフト キット"
+    },
+    {
+      "source": "aliexpress",
+      "source_item_id": "100500000001",
+      "canonical_url": "https://www.aliexpress.com/item/100500000001.html",
+      "title": "Unbranded storage pouch",
+      "displayed_price_jpy": 600,
+      "sourcing_shipping_jpy": 100,
+      "selected_variant": "gray / medium",
+      "variant_price_confirmed": true,
+      "delivery_days": 6,
+      "product_rating": 4.8,
+      "review_count": 230,
+      "seller_rating": 4.7,
+      "original_currency": "USD",
+      "original_amount": "3.80",
+      "matched_keyword": "交換用 収納 ケース"
+    },
+    {
+      "source": "shein",
+      "source_item_id": "sw-test-1",
+      "canonical_url": "https://jp.shein.com/example-p-sw-test-1.html",
+      "title": "Character battery accessory",
+      "displayed_price_jpy": 500,
+      "product_type": "battery",
+      "selected_variant": "pink",
+      "delivery_days": 10,
+      "product_rating": 4.2,
+      "review_count": 5,
+      "seller_rating": 4.0,
+      "character_name": "unverified character",
+      "matched_keyword": "在庫処分 小物"
+    }
+  ]
+}
