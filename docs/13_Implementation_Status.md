@@ -160,6 +160,7 @@ remain unchanged as requested.
 - Eligible EC offers enter the existing catalog so Gemini, Mercari evidence, and deterministic
   recommendation can continue without a separate calculation path.
 - Migration `0009_ec_exploration.sql` adds append-only sessions, source/query attempts, offers,
-  evaluations, RLS, indexes, audit/metrics, and versioned EC policy configuration.
+  evaluations, RLS, indexes, audit/metrics, and versioned EC policy configuration. It is applied to
+  the connected Supabase project.
 - Authenticated EC history and evidence pages expose attempts, offers, sourcing costs, policy
   outcomes, and structured rejection or confirmation reasons on mobile.
