@@ -21,6 +21,7 @@ def test_all_migrations_are_pending_for_empty_database() -> None:
         "0006_visual_search_evidence.sql",
         "0007_recommendations.sql",
         "0008_web_review.sql",
+        "0009_ec_exploration.sql",
     ]
 
 

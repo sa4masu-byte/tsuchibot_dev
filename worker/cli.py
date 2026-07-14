@@ -13,6 +13,7 @@ from backend.app.application.catalog import (
     RunContext,
     SourceConfig,
 )
+from backend.app.application.ec import ConductECExploration, ECExplorationRequest
 from backend.app.application.identification import ResolveModelIdentity
 from backend.app.application.recommendation import (
     CalculateRecommendation,
@@ -20,11 +21,13 @@ from backend.app.application.recommendation import (
     RecommendationRequest,
 )
 from backend.app.application.research import ConductMercariResearch, ResearchRequest
+from backend.app.domain.ec import ECPolicy
 from backend.app.domain.runs import RunMode
 from backend.app.domain.runs.models import ExplorationRun
 from backend.app.infrastructure.database import (
     PostgresCanonicalProductRepository,
     PostgresCatalogRepository,
+    PostgresECExplorationRepository,
     PostgresRecommendationCandidateRepository,
     PostgresRecommendationRepository,
     PostgresResearchCandidateRepository,
@@ -32,7 +35,11 @@ from backend.app.infrastructure.database import (
     PostgresRunRepository,
     PostgresVisualSearchRepository,
 )
-from backend.app.infrastructure.sources import JimotySpotAdapter, load_manual_research_document
+from backend.app.infrastructure.sources import (
+    JimotySpotAdapter,
+    load_manual_ec_document,
+    load_manual_research_document,
+)
 from backend.app.infrastructure.sources.browser_research import (
     BrowserMercariAdapter,
     BrowserResearchSession,
@@ -280,6 +287,76 @@ async def research_manual(
     return 0 if outcome.status in {"completed", "partial_failure"} else 3
 
 
+async def explore_ec_manual(run_id: str, input_path: Path) -> int:
+    settings = get_settings()
+    if not settings.database_url:
+        print(
+            json.dumps(
+                {
+                    "status": "configuration_error",
+                    "message": "TSUCHIBOT_DATABASE_URL is required for EC persistence.",
+                },
+                ensure_ascii=False,
+            )
+        )
+        return 2
+    parsed_run_id = UUID(run_id)
+    if await PostgresRunRepository(settings.database_url).get(parsed_run_id) is None:
+        raise KeyError(f"exploration run not found: {parsed_run_id}")
+    document, providers = load_manual_ec_document(input_path)
+    policy = ECPolicy(
+        keyword_limit=settings.ec_keyword_limit,
+        minimum_useful_candidates=settings.ec_minimum_useful_candidates,
+        overseas_delivery_days_max=settings.ec_overseas_delivery_days_max,
+        overseas_minimum_review_count=settings.ec_overseas_minimum_review_count,
+        overseas_minimum_product_rating=settings.ec_overseas_minimum_product_rating,
+        overseas_minimum_seller_rating=settings.ec_overseas_minimum_seller_rating,
+    )
+    record = await ConductECExploration(
+        providers,
+        PostgresECExplorationRepository(settings.database_url),
+        IngestSourceProduct(PostgresCatalogRepository(settings.database_url)),
+        policy,
+    ).execute(
+        ECExplorationRequest(
+            run_id=parsed_run_id,
+            observed_at=datetime.now(UTC),
+            useful_jimoty_candidates=document.useful_jimoty_candidates,
+            profit_pattern_keywords=tuple(document.profit_pattern_keywords),
+            mercari_demand_keywords=tuple(document.mercari_demand_keywords),
+            sale_discount_keywords=tuple(document.sale_discount_keywords),
+            complete_scan=document.complete_scan,
+            high_confidence_hypothesis=document.high_confidence_hypothesis,
+        )
+    )
+    print(
+        json.dumps(
+            {
+                "status": record.status,
+                "ec_exploration_session_id": str(record.id),
+                "trigger_reason": record.trigger_reason,
+                "keyword_count": len(record.keywords),
+                "source_statuses": {
+                    item.source.value: item.status for item in record.collections
+                },
+                "offer_count": len(record.evaluations),
+                "eligible_count": sum(
+                    item.eligibility.value == "eligible" for item in record.evaluations
+                ),
+                "confirmation_required_count": sum(
+                    item.eligibility.value == "confirmation_required"
+                    for item in record.evaluations
+                ),
+                "rejected_count": sum(
+                    item.eligibility.value == "rejected" for item in record.evaluations
+                ),
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0 if record.status in {"completed", "not_required"} else 3
+
+
 async def research_browser(
     source_product_id: str,
     run_id: str,
@@ -421,6 +498,9 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_parser.add_argument("--source-product-id", required=True)
     recommendation_parser.add_argument("--run-id", required=True)
     recommendation_parser.add_argument("--research-session-id")
+    ec_parser = subparsers.add_parser("ec-manual")
+    ec_parser.add_argument("--run-id", required=True)
+    ec_parser.add_argument("--input", type=Path, required=True)
     return parser
 
 
@@ -458,6 +538,8 @@ def main() -> int:
         )
         print(json.dumps(recommendation_summary(record), ensure_ascii=False))
         return 0
+    if args.command == "ec-manual":
+        return asyncio.run(explore_ec_manual(args.run_id, args.input))
     return 2
 
 

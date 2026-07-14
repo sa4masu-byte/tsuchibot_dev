@@ -1,0 +1,30 @@
+name: migrate
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: tsuchibot-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TSUCHIBOT_DATABASE_POOLER_HOST: aws-1-ap-northeast-2.pooler.supabase.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Configure IPv4 database connection
+        env:
+          TSUCHIBOT_DATABASE_URL: ${{ secrets.TSUCHIBOT_DATABASE_URL }}
+        run: python scripts/configure_github_database.py
+      - name: Apply database migrations
+        run: python scripts/migrate.py apply
+      - name: Verify migration status
+        run: python scripts/migrate.py status

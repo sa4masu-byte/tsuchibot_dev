@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     browser_detail_limit_per_query: int = Field(default=10, ge=1, le=20)
     browser_navigation_timeout_seconds: float = Field(default=30, ge=5, le=120)
     model_visual_search_threshold: float = Field(default=0.7, ge=0, le=1)
+    ec_keyword_limit: int = Field(default=20, ge=1, le=100)
+    ec_minimum_useful_candidates: int = Field(default=3, ge=0, le=100)
+    ec_overseas_delivery_days_max: int = Field(default=7, ge=1, le=30)
+    ec_overseas_minimum_review_count: int = Field(default=20, ge=0)
+    ec_overseas_minimum_product_rating: float = Field(default=4.5, ge=0, le=5)
+    ec_overseas_minimum_seller_rating: float = Field(default=4.5, ge=0, le=5)
 
     @property
     def cors_origin_list(self) -> list[str]:

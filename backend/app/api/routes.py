@@ -42,6 +42,13 @@ def review_repository(request: Request) -> Any:
     return repository
 
 
+def ec_review_repository(request: Request) -> Any:
+    repository = getattr(request.app.state, "ec_review_repository", None)
+    if repository is None:
+        raise HTTPException(status_code=503, detail="EC review database is not configured")
+    return repository
+
+
 async def recalculate_and_read(
     request: Request,
     repository: Any,
@@ -284,3 +291,28 @@ async def restore_comparable(
         idempotency_key,
         exclude=False,
     )
+
+
+@router.get("/ec/sessions", response_model=list[dict[str, Any]], tags=["ec-review"])
+async def list_ec_sessions(
+    request: Request,
+    _: CurrentSession,
+    limit: int = Query(default=50, ge=1, le=100),
+) -> list[dict[str, Any]]:
+    return cast(
+        list[dict[str, Any]],
+        await ec_review_repository(request).list_sessions(limit),
+    )
+
+
+@router.get("/ec/sessions/{session_id}", response_model=dict[str, Any], tags=["ec-review"])
+async def ec_session_detail(
+    session_id: UUID, request: Request, _: CurrentSession
+) -> dict[str, Any]:
+    detail = cast(
+        dict[str, Any] | None,
+        await ec_review_repository(request).session_detail(session_id),
+    )
+    if detail is None:
+        raise HTTPException(status_code=404, detail="EC exploration session was not found")
+    return detail

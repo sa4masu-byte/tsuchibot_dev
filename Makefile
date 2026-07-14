@@ -1,4 +1,4 @@
-.PHONY: install install-browser dev-backend dev-frontend migrate migration-status explore explore-full research-mercari research-mercari-browser recommend test lint typecheck check
+.PHONY: install install-browser dev-backend dev-frontend migrate migration-status explore explore-full research-mercari research-mercari-browser explore-ec recommend test lint typecheck check
 
 install:
 	python3 -m venv .venv
@@ -31,6 +31,9 @@ research-mercari:
 
 research-mercari-browser:
 	./scripts/research-mercari-browser.sh $(ARGS)
+
+explore-ec:
+	./scripts/explore-ec.sh $(ARGS)
 
 recommend:
 	./scripts/recommend.sh $(ARGS)

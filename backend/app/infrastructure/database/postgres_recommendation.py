@@ -28,6 +28,22 @@ def _median(values: list[int]) -> int | None:
     return round(float(median(values))) if values else None
 
 
+def _metadata_integer(metadata: dict[str, Any], key: str) -> int:
+    value = metadata.get(key, 0)
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+
+
+def _metadata_score(metadata: dict[str, Any], key: str) -> float | None:
+    value = metadata.get(key)
+    if (
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and 0 <= value <= 100
+    ):
+        return float(value)
+    return None
+
+
 def _effective_listing_price(row: dict[str, Any]) -> int:
     attributes = dict(row.get("normalized_attributes") or {})
     unit_count = attributes.get("bundle_unit_count")
@@ -137,6 +153,7 @@ class PostgresRecommendationCandidateRepository:
         corrections = {
             str(row["field_name"]): row["corrected_value"] for row in correction_rows
         }
+        source_metadata = dict(base["source_raw_metadata"] or {})
 
         analysis_payload = base["parsed_result"]
         analysis = (
@@ -164,9 +181,10 @@ class PostgresRecommendationCandidateRepository:
             analysis
             and (analysis.brand.value is not None or analysis.character.value is not None)
         )
-        authenticity_confidence = 0 if branded_or_character else 1
+        authenticity_supported = source_metadata.get("authenticity_supported") is True
+        authenticity_confidence = 0 if branded_or_character and not authenticity_supported else 1
         risks: list[str] = []
-        if branded_or_character:
+        if branded_or_character and not authenticity_supported:
             risks.append("authenticity_unconfirmed")
         if analysis is not None and analysis.size_class.value is SizeClass.OVERSIZED:
             risks.append("oversized_shipping")
@@ -206,6 +224,12 @@ class PostgresRecommendationCandidateRepository:
                 if base["current_price_jpy"] is not None
                 else None
             ),
+            sourcing_shipping_jpy=_metadata_integer(
+                source_metadata, "sourcing_shipping_jpy"
+            ),
+            definite_coupon_jpy=_metadata_integer(
+                source_metadata, "definite_coupon_jpy"
+            ),
             estimated_sale_price_jpy=(
                 int(estimated_sale_price) if estimated_sale_price is not None else None
             ),
@@ -230,6 +254,7 @@ class PostgresRecommendationCandidateRepository:
             condition_confidence=condition_confidence,
             authenticity_confidence=authenticity_confidence,
             price_competitiveness=price_competitiveness,
+            ec_delivery_score=_metadata_score(source_metadata, "ec_delivery_score"),
             major_risks=tuple(risks),
             research_evidence_snapshot_hash=str(base["evidence_snapshot_hash"]),
         )
@@ -265,6 +290,7 @@ class PostgresRecommendationCandidateRepository:
                 ss.shipping_method,
                 ss.confidence as shipping_confidence,
                 analysis.parsed_result
+                , observation.raw_metadata as source_raw_metadata
             from catalog.source_products sp
             join catalog.source_product_links spl on spl.source_product_id = sp.id
             join research.sessions rs on rs.canonical_product_id = spl.canonical_product_id
@@ -286,6 +312,12 @@ class PostgresRecommendationCandidateRepository:
                   and validation_status = 'valid'
                 order by created_at desc limit 1
             ) analysis on true
+            left join lateral (
+                select raw_metadata
+                from catalog.source_observations
+                where source_product_id = sp.id
+                order by observed_at desc limit 1
+            ) observation on true
             where sp.id = %s
               and rs.run_id = %s
               and (%s::uuid is null or rs.id = %s::uuid)

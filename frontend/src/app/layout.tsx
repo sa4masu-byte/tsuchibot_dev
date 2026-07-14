@@ -25,6 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           </Link>
           <nav aria-label="メインナビゲーション">
             <Link href="/products">候補</Link>
+            <Link href="/ec">EC探索</Link>
             <Link href="/runs">実行履歴</Link>
             <Link href="/login">ログイン</Link>
           </nav>
