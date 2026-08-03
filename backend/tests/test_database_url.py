@@ -1,7 +1,10 @@
 from urllib.parse import urlsplit
 
 import pytest
-from backend.app.shared.database_url import build_supabase_session_pooler_url
+from backend.app.shared.database_url import (
+    build_supabase_session_pooler_url,
+    prepare_github_database_url,
+)
 
 
 def test_builds_supabase_session_pooler_url_without_decoding_password() -> None:
@@ -47,3 +50,31 @@ def test_rejects_invalid_database_or_pooler_urls(
 ) -> None:
     with pytest.raises(ValueError):
         build_supabase_session_pooler_url(database_url, pooler_host)
+
+
+def test_accepts_current_supabase_session_pooler_url_without_rewriting() -> None:
+    database_url = (
+        "postgresql://postgres.abcdefghijkl:p%40ss%3Aword@"
+        "aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require"
+    )
+    assert prepare_github_database_url(database_url) == database_url
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgresql://postgres.abcdefghijkl:secret@"
+        "aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres",
+        "postgresql://postgres:secret@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres",
+    ],
+)
+def test_rejects_transaction_pooler_or_unscoped_pooler_user(database_url: str) -> None:
+    with pytest.raises(ValueError):
+        prepare_github_database_url(database_url)
+
+
+def test_legacy_direct_url_still_requires_explicit_pooler_host() -> None:
+    with pytest.raises(ValueError, match="pooler host is required"):
+        prepare_github_database_url(
+            "postgresql://postgres:secret@db.abcdefghijkl.supabase.co:5432/postgres"
+        )

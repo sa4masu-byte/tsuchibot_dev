@@ -38,7 +38,7 @@ make migrate
 make migration-status
 ```
 
-ローカルにPostgreSQL接続文字列を置かない場合は、GitHub Actionsの手動`migrate` Workflowからschema更新だけを実行できます。探索は同時に開始されません。
+ローカルにPostgreSQL接続文字列を置かない場合は、GitHub Actionsの手動`migrate` Workflowからschema更新だけを実行できます。探索は同時に開始されません。GitHub Secretの`TSUCHIBOT_DATABASE_URL`にはSupabaseのConnect画面にあるSession pooler URI（port 5432）をそのまま設定できます。
 
 通常の差分探索は次のいずれかで開始できます。
 
