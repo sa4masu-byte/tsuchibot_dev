@@ -19,7 +19,7 @@ make dev-frontend
 - OpenAPI: `http://localhost:8000/docs`
 - Web: `http://localhost:3000`
 
-ログイン後、トップ画面に最新の判定概要が表示されます。`/products`では候補を判定・スコア・商品名で絞り込み、詳細画面では比較対象の除外／復元と、確認済みの商品情報・適正販売価格・送料の補正ができます。変更は履歴と監査ログへ追記され、保存後に決定論的な判定を再計算します。
+ログイン後、トップ画面に最新の判定概要が表示されます。`/products`では候補を判定・スコア・商品名で絞り込み、詳細画面では比較対象の除外／復元、確認済みの商品情報・適正販売価格・送料の補正、購入判断、感性Feedbackを記録できます。`/inventory`では出品・売却・失敗結果を順番に記録し、購入時点の予測と実利益を比較できます。変更は履歴と監査ログへ追記され、外部サイトでの購入・出品操作は行いません。
 
 初期実装では永続化・GitHub dispatchとも交換可能なポートを使用し、資格情報がないローカル環境では安全なインメモリ実装にフォールバックします。
 
@@ -38,7 +38,7 @@ make migrate
 make migration-status
 ```
 
-ローカルにPostgreSQL接続文字列を置かない場合は、GitHub Actionsの手動`migrate` Workflowからschema更新だけを実行できます。探索は同時に開始されません。
+ローカルにPostgreSQL接続文字列を置かない場合は、GitHub Actionsの手動`migrate` Workflowからschema更新だけを実行できます。探索は同時に開始されません。GitHub Secretの`TSUCHIBOT_DATABASE_URL`にはSupabaseのConnect画面にあるSession pooler URI（port 5432）をそのまま設定できます。
 
 通常の差分探索は次のいずれかで開始できます。
 

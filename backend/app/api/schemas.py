@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
@@ -101,3 +102,75 @@ class ProductCorrectionRequest(BaseModel):
 
 class ComparableDecisionRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
+
+
+class PurchaseRequest(BaseModel):
+    purchased: bool = True
+    purchased_at: datetime
+    quantity: int | None = Field(default=None, ge=1, le=4)
+    product_amount_jpy: int | None = Field(default=None, ge=0)
+    sourcing_shipping_jpy: int | None = Field(default=None, ge=0)
+    coupon_jpy: int | None = Field(default=None, ge=0)
+    point_reference_jpy: int = Field(default=0, ge=0)
+    actual_charged_amount_jpy: int | None = Field(default=None, ge=0)
+    note: str | None = Field(default=None, max_length=1000)
+
+    @model_validator(mode="after")
+    def validate_purchase_values(self) -> "PurchaseRequest":
+        required = (
+            self.quantity,
+            self.product_amount_jpy,
+            self.sourcing_shipping_jpy,
+            self.coupon_jpy,
+            self.actual_charged_amount_jpy,
+        )
+        if self.purchased and any(value is None for value in required):
+            raise ValueError("purchase amounts and quantity are required when purchased")
+        if not self.purchased and any(value is not None for value in required):
+            raise ValueError("purchase amounts must be omitted when not purchased")
+        return self
+
+
+class ListingRequest(BaseModel):
+    listed_at: datetime
+    marketplace: str = Field(min_length=1, max_length=100)
+    listing_price_jpy: int = Field(ge=0)
+    quantity: int = Field(ge=1, le=4)
+    listing_url: str | None = Field(default=None, max_length=2000)
+
+
+class SaleRequest(BaseModel):
+    sold_at: datetime
+    sold_price_jpy: int = Field(ge=0)
+    actual_fee_jpy: int = Field(ge=0)
+    actual_shipping_jpy: int = Field(ge=0)
+    quantity: int = Field(ge=1, le=4)
+
+
+NegativeOutcome = Literal["returned", "cancelled", "unsold_90_days", "damaged", "lost", "other"]
+
+
+class NegativeOutcomeRequest(BaseModel):
+    outcome_type: NegativeOutcome
+    quantity: int = Field(ge=1, le=4)
+    occurred_at: datetime
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class PreferenceFeedbackRequest(BaseModel):
+    signal: Literal["want", "slightly_interested", "do_not_want", "cannot_judge"]
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ResearchValueFeedbackRequest(BaseModel):
+    signal: Literal["worth_researching", "not_worth_researching"]
+    note: str | None = Field(default=None, max_length=500)
+
+
+class HypothesisEvidenceRequest(BaseModel):
+    evidence_type: str = Field(min_length=1, max_length=100)
+    direction: Literal["supporting", "contradictory", "neutral"]
+    strength: Decimal = Field(ge=0, le=1)
+    source_reference_type: str = Field(min_length=1, max_length=100)
+    source_reference_id: UUID | None = None
+    summary: str = Field(min_length=1, max_length=1000)

@@ -17,6 +17,7 @@ def test_migrations_are_ordered_and_parse_as_postgresql() -> None:
         "0007_recommendations.sql",
         "0008_web_review.sql",
         "0009_ec_exploration.sql",
+        "0010_inventory_learning.sql",
     ]
     for migration in migrations:
         statements = parse_sql(migration.read_text())
@@ -77,3 +78,29 @@ def test_ec_migration_has_append_only_evidence_and_rls() -> None:
     ):
         assert f"create trigger {trigger}" in ec_sql
     assert "'ec-phase1-v1'" in ec_sql
+
+
+def test_inventory_learning_migration_preserves_outcome_history() -> None:
+    sql = (MIGRATIONS / "0010_inventory_learning.sql").read_text()
+    for table in (
+        "purchase_decisions",
+        "positions",
+        "purchase_events",
+        "listing_events",
+        "sale_events",
+        "negative_outcomes",
+    ):
+        assert f"create table inventory.{table}" in sql
+        assert f"alter table inventory.{table} enable row level security" in sql
+    for trigger in (
+        "purchase_events_append_only",
+        "listing_events_append_only",
+        "sale_events_append_only",
+        "negative_outcomes_append_only",
+        "hypothesis_evidence_append_only",
+        "learning_events_append_only",
+    ):
+        assert f"create trigger {trigger}" in sql
+    assert "check (purchased_quantity between 1 and 4)" in sql
+    assert "sold_quantity + failed_quantity <= purchased_quantity" in sql
+    assert "('replacement_product'" in sql

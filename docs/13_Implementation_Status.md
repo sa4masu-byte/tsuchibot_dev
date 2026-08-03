@@ -164,3 +164,27 @@ remain unchanged as requested.
   the connected Supabase project.
 - Authenticated EC history and evidence pages expose attempts, offers, sourcing costs, policy
   outcomes, and structured rejection or confirmation reasons on mobile.
+
+## Sprint 8 inventory-and-learning baseline (2026-08-03)
+
+- Authenticated purchase decisions preserve both purchased and not-purchased outcomes. Purchased
+  quantities are limited to one through four, and the actual charged amount is validated from the
+  product amount, sourcing shipping, and definite coupon; points remain reference-only.
+- Each inventory position freezes the recommendation available at purchase time in a prediction
+  snapshot. Purchase, listing, sale, and negative-outcome values are stored separately as actual
+  append-only events and never overwrite that snapshot.
+- Remaining inventory prevents over-sale and over-allocation to return, cancellation, 90-day
+  unsold, damaged, lost, or other outcomes. Split sales use cumulative integer-yen cost allocation
+  so their allocated purchase costs sum exactly to the actual charged amount.
+- Realised profit is calculated on the server from actual sale revenue, fee, sale shipping, and
+  allocated purchase cost. Inventory detail exposes predicted profit for the sold quantity, actual
+  profit, and their difference.
+- Personal appeal and research-value Feedback are append-only learning signals. The five initial
+  FR-110 profit patterns and hypotheses are seeded, and supporting, contradictory, or neutral
+  evidence can be appended without autonomously changing confidence or scoring rules.
+- Candidate detail now records purchase decisions and Feedback. Mobile inventory screens guide
+  listing, sale, negative outcome, and hypothesis-evidence entry and show balance, actual financial
+  totals, prediction-versus-actual comparison, and learning history.
+- Migration `0010_inventory_learning.sql` adds inventory and learning schemas, constraints,
+  append-only guards, RLS, indexes, initial patterns, hypotheses, command idempotency, and audit
+  records. Default tests remain disconnected from external sites and never purchase or list items.

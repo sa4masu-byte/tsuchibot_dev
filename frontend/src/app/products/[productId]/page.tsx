@@ -8,6 +8,8 @@ import { apiFetch } from "@/lib/api";
 import { ProductDetail, tierLabel, yen } from "@/lib/review-types";
 import { useRequiredSession } from "@/lib/use-session";
 
+import { OutcomeStartPanel } from "./outcome-start-panel";
+
 const correctionFields = [
   ["display_name", "商品名"],
   ["category", "カテゴリ"],
@@ -112,6 +114,11 @@ export default function ProductDetailPage() {
         <article className="metric-card"><span>予想利益</span><strong>{yen(recommendation?.expected_profit_jpy)}</strong><small>手数料・送料控除後</small></article>
         <article className="metric-card"><span>売れ行き / 信頼度</span><strong>{recommendation ? `${recommendation.sales_prospect_score} / ${recommendation.confidence_score}` : "—"}</strong><small>各100点</small></article>
       </section>
+
+      <OutcomeStartPanel
+        productId={productId}
+        sourcePriceJpy={data.source.current_price_jpy}
+      />
 
       <div className="review-columns">
         <div>
