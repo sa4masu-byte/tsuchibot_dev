@@ -12,10 +12,17 @@ from backend.app.api.schemas import (
     ComparableDecisionRequest,
     DispatchResponse,
     HealthResponse,
+    HypothesisEvidenceRequest,
+    ListingRequest,
     LoginRequest,
+    NegativeOutcomeRequest,
+    PreferenceFeedbackRequest,
     ProductCorrectionRequest,
+    PurchaseRequest,
+    ResearchValueFeedbackRequest,
     RunDispatchRequest,
     RunResponse,
+    SaleRequest,
     SessionResponse,
 )
 from backend.app.application.runs import (
@@ -47,6 +54,26 @@ def ec_review_repository(request: Request) -> Any:
     if repository is None:
         raise HTTPException(status_code=503, detail="EC review database is not configured")
     return repository
+
+
+def inventory_repository(request: Request) -> Any:
+    repository = getattr(request.app.state, "inventory_repository", None)
+    if repository is None:
+        raise HTTPException(status_code=503, detail="Inventory database is not configured")
+    return repository
+
+
+def command_payload(body: Any) -> dict[str, Any]:
+    return cast(dict[str, Any], body.model_dump())
+
+
+async def run_inventory_command(command: Any) -> dict[str, Any]:
+    try:
+        return cast(dict[str, Any], await command)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Product or inventory was not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 async def recalculate_and_read(
@@ -167,9 +194,7 @@ async def list_products(
 
 
 @router.get("/products/{product_id}", response_model=dict[str, Any], tags=["review"])
-async def product_detail(
-    product_id: UUID, request: Request, _: CurrentSession
-) -> dict[str, Any]:
+async def product_detail(product_id: UUID, request: Request, _: CurrentSession) -> dict[str, Any]:
     detail = cast(
         dict[str, Any] | None,
         await review_repository(request).product_detail(product_id),
@@ -190,9 +215,7 @@ async def correct_product(
     request: Request,
     identity: CurrentSession,
     settings: Annotated[Settings, Depends(get_settings)],
-    idempotency_key: Annotated[
-        str, Header(alias="Idempotency-Key", min_length=8, max_length=128)
-    ],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
 ) -> dict[str, Any]:
     require_same_origin(request, settings)
     repository = review_repository(request)
@@ -249,9 +272,7 @@ async def exclude_comparable(
     request: Request,
     identity: CurrentSession,
     settings: Annotated[Settings, Depends(get_settings)],
-    idempotency_key: Annotated[
-        str, Header(alias="Idempotency-Key", min_length=8, max_length=128)
-    ],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
 ) -> dict[str, Any]:
     return await change_comparable_decision(
         product_id,
@@ -277,9 +298,7 @@ async def restore_comparable(
     request: Request,
     identity: CurrentSession,
     settings: Annotated[Settings, Depends(get_settings)],
-    idempotency_key: Annotated[
-        str, Header(alias="Idempotency-Key", min_length=8, max_length=128)
-    ],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
 ) -> dict[str, Any]:
     return await change_comparable_decision(
         product_id,
@@ -316,3 +335,178 @@ async def ec_session_detail(
     if detail is None:
         raise HTTPException(status_code=404, detail="EC exploration session was not found")
     return detail
+
+
+@router.post("/products/{product_id}/purchase", response_model=dict[str, Any], tags=["inventory"])
+async def record_purchase(
+    product_id: UUID,
+    body: PurchaseRequest,
+    request: Request,
+    identity: CurrentSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> dict[str, Any]:
+    require_same_origin(request, settings)
+    return await run_inventory_command(
+        inventory_repository(request).record_purchase(
+            product_id, command_payload(body), identity.subject, idempotency_key
+        )
+    )
+
+
+@router.get("/inventory", response_model=list[dict[str, Any]], tags=["inventory"])
+async def list_inventory(
+    request: Request,
+    _: CurrentSession,
+    limit: int = Query(default=100, ge=1, le=100),
+) -> list[dict[str, Any]]:
+    return cast(list[dict[str, Any]], await inventory_repository(request).list_positions(limit))
+
+
+@router.get("/inventory/{position_id}", response_model=dict[str, Any], tags=["inventory"])
+async def inventory_detail(
+    position_id: UUID, request: Request, _: CurrentSession
+) -> dict[str, Any]:
+    detail = cast(
+        dict[str, Any] | None,
+        await inventory_repository(request).position_detail(position_id),
+    )
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Inventory position was not found")
+    return detail
+
+
+@router.post("/inventory/{position_id}/listings", response_model=dict[str, Any], tags=["inventory"])
+async def record_listing(
+    position_id: UUID,
+    body: ListingRequest,
+    request: Request,
+    identity: CurrentSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> dict[str, Any]:
+    require_same_origin(request, settings)
+    return await run_inventory_command(
+        inventory_repository(request).record_listing(
+            position_id, command_payload(body), identity.subject, idempotency_key
+        )
+    )
+
+
+@router.post("/inventory/{position_id}/sales", response_model=dict[str, Any], tags=["inventory"])
+async def record_sale(
+    position_id: UUID,
+    body: SaleRequest,
+    request: Request,
+    identity: CurrentSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> dict[str, Any]:
+    require_same_origin(request, settings)
+    return await run_inventory_command(
+        inventory_repository(request).record_sale(
+            position_id, command_payload(body), identity.subject, idempotency_key
+        )
+    )
+
+
+@router.post(
+    "/inventory/{position_id}/negative-outcomes",
+    response_model=dict[str, Any],
+    tags=["inventory"],
+)
+async def record_negative_outcome(
+    position_id: UUID,
+    body: NegativeOutcomeRequest,
+    request: Request,
+    identity: CurrentSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> dict[str, Any]:
+    require_same_origin(request, settings)
+    return await run_inventory_command(
+        inventory_repository(request).record_negative_outcome(
+            position_id, command_payload(body), identity.subject, idempotency_key
+        )
+    )
+
+
+@router.post(
+    "/products/{product_id}/feedback/preference",
+    response_model=dict[str, Any],
+    tags=["learning"],
+)
+async def record_preference_feedback(
+    product_id: UUID,
+    body: PreferenceFeedbackRequest,
+    request: Request,
+    identity: CurrentSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> dict[str, Any]:
+    require_same_origin(request, settings)
+    return await run_inventory_command(
+        inventory_repository(request).record_preference(
+            product_id, body.signal, body.note, identity.subject, idempotency_key
+        )
+    )
+
+
+@router.post(
+    "/products/{product_id}/feedback/research-value",
+    response_model=dict[str, Any],
+    tags=["learning"],
+)
+async def record_research_value_feedback(
+    product_id: UUID,
+    body: ResearchValueFeedbackRequest,
+    request: Request,
+    identity: CurrentSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> dict[str, Any]:
+    require_same_origin(request, settings)
+    return await run_inventory_command(
+        inventory_repository(request).record_research_value(
+            product_id, body.signal, body.note, identity.subject, idempotency_key
+        )
+    )
+
+
+@router.get("/hypotheses", response_model=list[dict[str, Any]], tags=["learning"])
+async def list_hypotheses(request: Request, _: CurrentSession) -> list[dict[str, Any]]:
+    return cast(list[dict[str, Any]], await inventory_repository(request).list_hypotheses())
+
+
+@router.get("/hypotheses/{hypothesis_id}", response_model=dict[str, Any], tags=["learning"])
+async def hypothesis_detail(
+    hypothesis_id: UUID, request: Request, _: CurrentSession
+) -> dict[str, Any]:
+    detail = cast(
+        dict[str, Any] | None,
+        await inventory_repository(request).hypothesis_detail(hypothesis_id),
+    )
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Hypothesis was not found")
+    return detail
+
+
+@router.post(
+    "/hypotheses/{hypothesis_id}/evidence",
+    response_model=dict[str, Any],
+    tags=["learning"],
+)
+async def add_hypothesis_evidence(
+    hypothesis_id: UUID,
+    body: HypothesisEvidenceRequest,
+    request: Request,
+    identity: CurrentSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> dict[str, Any]:
+    require_same_origin(request, settings)
+    return await run_inventory_command(
+        inventory_repository(request).add_hypothesis_evidence(
+            hypothesis_id, command_payload(body), identity.subject, idempotency_key
+        )
+    )
