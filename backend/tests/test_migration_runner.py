@@ -23,6 +23,7 @@ def test_all_migrations_are_pending_for_empty_database() -> None:
         "0008_web_review.sql",
         "0009_ec_exploration.sql",
         "0010_inventory_learning.sql",
+        "0011_command_idempotency.sql",
     ]
 
 

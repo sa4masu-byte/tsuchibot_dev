@@ -29,6 +29,10 @@ make dev-frontend
 make check
 ```
 
+CIでは一時PostgreSQLに全migrationを適用し、在庫・学習Commandの再送を検証します。ローカルでも専用の`*_test`データベースを用意し、`TSUCHIBOT_TEST_DATABASE_URL`を指定すると同じ統合テストを実行できます。通常の`make check`は実サイトへアクセスしません。
+
+APIの更新系リクエストは既定で1 MiBまで、共有パスワードの失敗は同一APIプロセス・同一接続元あたり15分間に5回までです。これらの上限は`.env`で変更できます。複数APIプロセスに展開する際は共通ストアを使うレート制限へ置き換える必要があります。
+
 ## 手動探索バッチ
 
 Supabase接続を設定した後、最初にchecksum管理付きmigrationを適用します。

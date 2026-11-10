@@ -1,4 +1,5 @@
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -42,12 +43,12 @@ class SessionManager:
             data = json.loads(raw)
             subject = data["sub"]
             expires_at = data["exp"]
-            if not isinstance(subject, str) or not isinstance(expires_at, int):
+            if not isinstance(subject, str) or type(expires_at) is not int:
                 return None
             if expires_at <= int(time.time()):
                 return None
             return SessionIdentity(subject=subject, expires_at=expires_at)
-        except (ValueError, KeyError, json.JSONDecodeError, UnicodeDecodeError):
+        except (ValueError, KeyError, binascii.Error, UnicodeDecodeError):
             return None
 
     def _sign(self, payload: str) -> str:

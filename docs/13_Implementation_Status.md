@@ -188,3 +188,19 @@ remain unchanged as requested.
 - Migration `0010_inventory_learning.sql` adds inventory and learning schemas, constraints,
   append-only guards, RLS, indexes, initial patterns, hypotheses, command idempotency, and audit
   records. Default tests remain disconnected from external sites and never purchase or list items.
+
+## Sprint 9 hardening in progress (2026-11-10)
+
+- Login, logout, and run dispatch reject disallowed browser origins and explicit cross-site Fetch
+  Metadata. Login attempts are bounded per client address within one API process, with a 429 and
+  `Retry-After` response. This is not yet a distributed rate limiter.
+- API mutation bodies have a configurable size ceiling that is enforced before JSON parsing,
+  including streamed requests. Malformed signed cookies now fail closed as unauthenticated.
+- New migration `0011_command_idempotency.sql` reserves one command key globally across inventory
+  and learning operations, binds it to the action, target, and payload hash, and rejects a reused
+  key with different intent. Replays do not duplicate learning or audit events.
+- CI now provisions disposable PostgreSQL, applies every migration, and exercises purchase,
+  listing, sale, negative outcome, feedback, and hypothesis evidence replay. Local tests skip
+  this integration contract unless an explicit `*_test` database URL is provided.
+- Migration 0011 has not yet been applied to the connected Supabase project. Production deployment,
+  complete mobile E2E coverage, and the remaining Sprint 9 acceptance checks are pending.

@@ -1,3 +1,5 @@
+import hashlib
+import json
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -151,6 +153,7 @@ class PostgresInventoryLearningRepository:
             await AsyncConnection.connect(self._database_url, row_factory=dict_row) as connection,
             connection.transaction(),
         ):
+            await self._claim_command(connection, "purchase", product_id, command, idempotency_key)
             existing = await (
                 await connection.execute(
                     """
@@ -218,6 +221,14 @@ class PostgresInventoryLearningRepository:
                         product_id=product_id,
                         payload={"note": command.get("note")},
                         reference=("purchase_decision", decision["id"] if decision else None),
+                    )
+                    await self._audit(
+                        connection,
+                        actor,
+                        "purchase_skipped",
+                        product_id,
+                        {"note": command.get("note")},
+                        entity_type="canonical_product",
                     )
                     return {
                         "purchased": False,
@@ -321,6 +332,7 @@ class PostgresInventoryLearningRepository:
             await AsyncConnection.connect(self._database_url, row_factory=dict_row) as connection,
             connection.transaction(),
         ):
+            await self._claim_command(connection, "listing", position_id, command, idempotency_key)
             existing = await self._event_by_key(connection, "listing_events", idempotency_key)
             if existing is None:
                 position = await self._locked_position(connection, position_id)
@@ -376,6 +388,7 @@ class PostgresInventoryLearningRepository:
             await AsyncConnection.connect(self._database_url, row_factory=dict_row) as connection,
             connection.transaction(),
         ):
+            await self._claim_command(connection, "sale", position_id, command, idempotency_key)
             existing = await self._event_by_key(connection, "sale_events", idempotency_key)
             if existing is None:
                 position = await self._locked_position(connection, position_id)
@@ -461,6 +474,9 @@ class PostgresInventoryLearningRepository:
             await AsyncConnection.connect(self._database_url, row_factory=dict_row) as connection,
             connection.transaction(),
         ):
+            await self._claim_command(
+                connection, "negative_outcome", position_id, command, idempotency_key
+            )
             existing = await self._event_by_key(connection, "negative_outcomes", idempotency_key)
             if existing is None:
                 position = await self._locked_position(connection, position_id)
@@ -614,6 +630,9 @@ class PostgresInventoryLearningRepository:
             await AsyncConnection.connect(self._database_url, row_factory=dict_row) as connection,
             connection.transaction(),
         ):
+            replayed = await self._claim_command(
+                connection, "hypothesis_evidence", hypothesis_id, command, idempotency_key
+            )
             hypothesis = await (
                 await connection.execute(
                     "select id from learning.profit_hypotheses where id = %s",
@@ -622,28 +641,43 @@ class PostgresInventoryLearningRepository:
             ).fetchone()
             if hypothesis is None:
                 raise KeyError(hypothesis_id)
-            await connection.execute(
-                """
-                insert into learning.hypothesis_evidence (
-                    hypothesis_id, evidence_type, direction, strength,
-                    source_reference_type, source_reference_id, summary, idempotency_key
-                ) values (%s, %s, %s, %s, %s, %s, %s, %s)
-                on conflict (idempotency_key) do nothing
-                """,
-                (
+            if not replayed:
+                event = await (
+                    await connection.execute(
+                        """
+                    insert into learning.hypothesis_evidence (
+                        hypothesis_id, evidence_type, direction, strength,
+                        source_reference_type, source_reference_id, summary, idempotency_key
+                    ) values (%s, %s, %s, %s, %s, %s, %s, %s)
+                    returning id
+                    """,
+                        (
+                            hypothesis_id,
+                            command["evidence_type"],
+                            command["direction"],
+                            command["strength"],
+                            command["source_reference_type"],
+                            command.get("source_reference_id"),
+                            command["summary"],
+                            idempotency_key,
+                        ),
+                    )
+                ).fetchone()
+                await self._insert_learning_event(
+                    connection,
+                    "hypothesis_evidence_added",
+                    actor,
+                    payload={**command, "hypothesis_id": hypothesis_id},
+                    reference=("hypothesis_evidence", event["id"] if event else None),
+                )
+                await self._audit(
+                    connection,
+                    actor,
+                    "hypothesis_evidence_added",
                     hypothesis_id,
-                    command["evidence_type"],
-                    command["direction"],
-                    command["strength"],
-                    command["source_reference_type"],
-                    command.get("source_reference_id"),
-                    command["summary"],
-                    idempotency_key,
-                ),
-            )
-            await self._audit(
-                connection, actor, "hypothesis_evidence_added", hypothesis_id, command
-            )
+                    command,
+                    entity_type="profit_hypothesis",
+                )
         detail = await self.hypothesis_detail(hypothesis_id)
         assert detail is not None
         return detail
@@ -662,6 +696,13 @@ class PostgresInventoryLearningRepository:
             await AsyncConnection.connect(self._database_url, row_factory=dict_row) as connection,
             connection.transaction(),
         ):
+            await self._claim_command(
+                connection,
+                event_type,
+                product_id,
+                {"signal": signal, "note": note},
+                idempotency_key,
+            )
             product = await (
                 await connection.execute(
                     "select id from catalog.canonical_products where id = %s",
@@ -695,6 +736,14 @@ class PostgresInventoryLearningRepository:
                     payload={"signal": signal, "note": note},
                     reference=(event_type, existing["id"] if existing else None),
                 )
+                await self._audit(
+                    connection,
+                    actor,
+                    event_type,
+                    product_id,
+                    {"signal": signal, "note": note},
+                    entity_type="canonical_product",
+                )
         assert existing is not None
         return dict(existing)
 
@@ -703,6 +752,51 @@ class PostgresInventoryLearningRepository:
         if detail is None:
             raise KeyError(position_id)
         return detail
+
+    @staticmethod
+    async def _claim_command(
+        connection: AsyncConnection[dict[str, Any]],
+        action: str,
+        target_id: UUID,
+        payload: dict[str, Any],
+        idempotency_key: str,
+    ) -> bool:
+        canonical_payload = PostgresInventoryLearningRepository._json_value(payload)
+        payload_hash = hashlib.sha256(
+            json.dumps(
+                canonical_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            ).encode()
+        ).hexdigest()
+        inserted = await (
+            await connection.execute(
+                """
+                insert into audit.command_requests (
+                    idempotency_key, action, target_id, payload_hash
+                ) values (%s, %s, %s, %s)
+                on conflict (idempotency_key) do nothing
+                returning idempotency_key
+                """,
+                (idempotency_key, action, target_id, payload_hash),
+            )
+        ).fetchone()
+        if inserted is not None:
+            return False
+        existing = await (
+            await connection.execute(
+                """
+                select action, target_id, payload_hash from audit.command_requests
+                where idempotency_key = %s
+                """,
+                (idempotency_key,),
+            )
+        ).fetchone()
+        if existing is None or (
+            existing["action"] != action
+            or existing["target_id"] != target_id
+            or existing["payload_hash"] != payload_hash
+        ):
+            raise ValueError("idempotency key was already used for a different command")
+        return True
 
     @staticmethod
     async def _events(
@@ -787,15 +881,18 @@ class PostgresInventoryLearningRepository:
         action: str,
         entity_id: UUID,
         value: dict[str, Any],
+        *,
+        entity_type: str = "inventory_position",
     ) -> None:
         await connection.execute(
             """
             insert into audit.events (actor, action, entity_type, entity_id, after_value)
-            values (%s, %s, 'inventory_position', %s, %s)
+            values (%s, %s, %s, %s, %s)
             """,
             (
                 actor,
                 action,
+                entity_type,
                 str(entity_id),
                 Jsonb(PostgresInventoryLearningRepository._json_value(value)),
             ),
