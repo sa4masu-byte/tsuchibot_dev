@@ -34,6 +34,7 @@ export default function Dashboard() {
     try {
       const result = await apiFetch<DispatchResponse>("/runs/dispatch", {
         method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({ mode: "incremental" }),
       });
       if (result.external_run_id?.startsWith("local-")) {

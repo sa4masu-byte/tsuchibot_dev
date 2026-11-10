@@ -60,7 +60,10 @@ def test_cross_site_login_logout_and_dispatch_are_rejected(client: TestClient) -
     assert (
         client.post(
             "/api/v1/runs/dispatch",
-            headers={"Sec-Fetch-Site": "cross-site"},
+            headers={
+                "Sec-Fetch-Site": "cross-site",
+                "Idempotency-Key": "cross-site-dispatch",
+            },
             json={"mode": "incremental"},
         ).status_code
         == 403

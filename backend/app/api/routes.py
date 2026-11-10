@@ -160,11 +160,14 @@ async def dispatch_run(
     request: Request,
     identity: CurrentSession,
     settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
 ) -> DispatchResponse:
     require_same_origin(request, settings)
     use_case: StartExplorationRun = request.app.state.start_exploration_run
     try:
-        run, dispatch = await use_case.execute(body.mode, identity.subject, body.target_run_id)
+        run, dispatch = await use_case.execute(
+            body.mode, identity.subject, body.target_run_id, idempotency_key
+        )
     except RunConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except WorkflowDispatchError as exc:

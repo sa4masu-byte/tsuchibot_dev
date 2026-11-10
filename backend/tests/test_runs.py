@@ -35,6 +35,20 @@ async def test_active_run_conflicts() -> None:
         await use_case.execute(RunMode.FULL, "tester")
 
 
+@pytest.mark.asyncio
+async def test_dispatch_replay_returns_original_run_and_rejects_changed_intent() -> None:
+    repository = InMemoryRunRepository()
+    use_case = StartExplorationRun(repository, LocalWorkflowDispatcher())
+    first, _ = await use_case.execute(RunMode.INCREMENTAL, "tester", idempotency_key="same-run-key")
+    repeated, _ = await use_case.execute(
+        RunMode.INCREMENTAL, "tester", idempotency_key="same-run-key"
+    )
+    assert repeated.id == first.id
+    assert len(await repository.list()) == 1
+    with pytest.raises(RunConflictError, match="different run"):
+        await use_case.execute(RunMode.FULL, "tester", idempotency_key="same-run-key")
+
+
 class FailingDispatcher:
     async def dispatch(self, run: ExplorationRun) -> DispatchResult:
         raise RuntimeError("provider rejected dispatch")
@@ -53,16 +67,27 @@ async def test_dispatch_failure_marks_run_failed() -> None:
 
 def test_dispatch_api_validates_and_prevents_overlap(client: TestClient) -> None:
     client.post("/api/v1/auth/login", json={"password": "correct-horse"})
+    headers = {"Idempotency-Key": "dispatch-test-key"}
 
-    invalid = client.post("/api/v1/runs/dispatch", json={"mode": "retry_failed"})
+    assert client.post("/api/v1/runs/dispatch", json={"mode": "incremental"}).status_code == 422
+
+    invalid = client.post("/api/v1/runs/dispatch", headers=headers, json={"mode": "retry_failed"})
     assert invalid.status_code == 422
     assert invalid.json()["error"]["code"] == "VALIDATION_ERROR"
 
-    response = client.post("/api/v1/runs/dispatch", json={"mode": "incremental"})
+    response = client.post("/api/v1/runs/dispatch", headers=headers, json={"mode": "incremental"})
     assert response.status_code == 200
     assert response.json()["run"]["status"] == "pending"
 
-    conflict = client.post("/api/v1/runs/dispatch", json={"mode": "full"})
+    replay = client.post("/api/v1/runs/dispatch", headers=headers, json={"mode": "incremental"})
+    assert replay.status_code == 200
+    assert replay.json()["run"]["id"] == response.json()["run"]["id"]
+
+    conflict = client.post(
+        "/api/v1/runs/dispatch",
+        headers={"Idempotency-Key": "another-dispatch-key"},
+        json={"mode": "full"},
+    )
     assert conflict.status_code == 409
 
 
@@ -70,6 +95,7 @@ def test_retry_dispatch_accepts_target(client: TestClient) -> None:
     client.post("/api/v1/auth/login", json={"password": "correct-horse"})
     response = client.post(
         "/api/v1/runs/dispatch",
+        headers={"Idempotency-Key": "retry-dispatch-key"},
         json={"mode": "retry_failed", "target_run_id": str(uuid4())},
     )
     assert response.status_code == 200

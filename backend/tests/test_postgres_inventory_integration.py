@@ -8,10 +8,17 @@ from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import pytest
+from backend.app.application.runs import (
+    LocalWorkflowDispatcher,
+    RunConflictError,
+    StartExplorationRun,
+)
+from backend.app.domain.runs import RunMode
 from backend.app.infrastructure.database.migrations import PostgresMigrationRunner
 from backend.app.infrastructure.database.postgres_inventory import (
     PostgresInventoryLearningRepository,
 )
+from backend.app.infrastructure.database.postgres_runs import PostgresRunRepository
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 
@@ -195,3 +202,15 @@ async def test_migrations_and_inventory_command_contract() -> None:
                 )
             ).fetchone()
             assert row and row["count"] == 1
+
+    dispatch = StartExplorationRun(PostgresRunRepository(database_url), LocalWorkflowDispatcher())
+    dispatch_key = str(uuid4())
+    first_run, _ = await dispatch.execute(
+        RunMode.INCREMENTAL, "integration-test", idempotency_key=dispatch_key
+    )
+    repeated_run, _ = await dispatch.execute(
+        RunMode.INCREMENTAL, "integration-test", idempotency_key=dispatch_key
+    )
+    assert repeated_run.id == first_run.id
+    with pytest.raises(RunConflictError, match="different run"):
+        await dispatch.execute(RunMode.FULL, "integration-test", idempotency_key=dispatch_key)

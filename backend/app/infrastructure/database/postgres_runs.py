@@ -4,8 +4,10 @@ from typing import Any
 from uuid import UUID
 
 from psycopg import AsyncConnection
+from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 
+from backend.app.application.runs import RunConflictError
 from backend.app.domain.runs import ExplorationRun, RunMode, RunStatus
 
 
@@ -13,18 +15,61 @@ class PostgresRunRepository:
     def __init__(self, database_url: str) -> None:
         self._database_url = database_url
 
-    async def add(self, run: ExplorationRun) -> None:
-        async with await AsyncConnection.connect(self._database_url) as connection:
-            await connection.execute(
-                """
-                insert into runs.exploration_runs (
-                    id, mode, trigger_source, requested_by, status, current_stage,
-                    progress_numerator, progress_denominator, target_run_id,
-                    started_at, finished_at, created_at
-                ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                self._values(run),
-            )
+    async def add(
+        self,
+        run: ExplorationRun,
+        idempotency_key: str | None = None,
+        payload_hash: str | None = None,
+    ) -> None:
+        if idempotency_key is not None and payload_hash is None:
+            raise ValueError("payload hash is required with an idempotency key")
+        try:
+            async with await AsyncConnection.connect(self._database_url) as connection:
+                await connection.execute(
+                    """
+                    insert into runs.exploration_runs (
+                        id, mode, trigger_source, requested_by, status, current_stage,
+                        progress_numerator, progress_denominator, target_run_id,
+                        started_at, finished_at, created_at
+                    ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    self._values(run),
+                )
+                if idempotency_key is not None:
+                    await connection.execute(
+                        """
+                        insert into audit.command_requests (
+                            idempotency_key, action, target_id, payload_hash
+                        ) values (%s, 'run_dispatch', %s, %s)
+                        """,
+                        (idempotency_key, run.id, payload_hash),
+                    )
+        except UniqueViolation as exc:
+            raise RunConflictError(
+                "an exploration run or idempotency key is already active"
+            ) from exc
+
+    async def get_dispatch_request(self, key: str) -> tuple[ExplorationRun, str] | None:
+        async with await AsyncConnection.connect(
+            self._database_url, row_factory=dict_row
+        ) as connection:
+            row = await (
+                await connection.execute(
+                    """
+                    select action, target_id, payload_hash from audit.command_requests
+                    where idempotency_key = %s
+                    """,
+                    (key,),
+                )
+            ).fetchone()
+        if row is None:
+            return None
+        if row["action"] != "run_dispatch":
+            raise RunConflictError("idempotency key was already used for another command")
+        run = await self.get(UUID(str(row["target_id"])))
+        if run is None:
+            raise RunConflictError("idempotency key points to a missing run")
+        return run, str(row["payload_hash"])
 
     async def get(self, run_id: UUID) -> ExplorationRun | None:
         async with await AsyncConnection.connect(

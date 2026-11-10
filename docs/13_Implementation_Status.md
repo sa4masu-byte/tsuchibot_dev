@@ -198,7 +198,8 @@ remain unchanged as requested.
   including streamed requests. Malformed signed cookies now fail closed as unauthenticated.
 - New migration `0011_command_idempotency.sql` reserves one command key globally across inventory
   and learning operations, binds it to the action, target, and payload hash, and rejects a reused
-  key with different intent. Replays do not duplicate learning or audit events.
+  key with different intent. Run dispatch now uses the same ledger, so a replay returns the same
+  Run without a second GitHub request. Inventory replays do not duplicate learning or audit events.
 - CI now provisions disposable PostgreSQL, applies every migration, and exercises purchase,
   listing, sale, negative outcome, feedback, and hypothesis evidence replay. Local tests skip
   this integration contract unless an explicit `*_test` database URL is provided.

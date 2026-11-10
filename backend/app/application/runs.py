@@ -1,3 +1,5 @@
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -14,7 +16,14 @@ class WorkflowDispatchError(RuntimeError):
 
 
 class RunRepository(Protocol):
-    async def add(self, run: ExplorationRun) -> None: ...
+    async def add(
+        self,
+        run: ExplorationRun,
+        idempotency_key: str | None = None,
+        payload_hash: str | None = None,
+    ) -> None: ...
+
+    async def get_dispatch_request(self, key: str) -> tuple[ExplorationRun, str] | None: ...
 
     async def get(self, run_id: UUID) -> ExplorationRun | None: ...
 
@@ -38,9 +47,28 @@ class WorkflowDispatcher(Protocol):
 class InMemoryRunRepository:
     def __init__(self) -> None:
         self._runs: dict[UUID, ExplorationRun] = {}
+        self._dispatch_requests: dict[str, tuple[UUID, str]] = {}
 
-    async def add(self, run: ExplorationRun) -> None:
+    async def add(
+        self,
+        run: ExplorationRun,
+        idempotency_key: str | None = None,
+        payload_hash: str | None = None,
+    ) -> None:
+        if idempotency_key is not None:
+            if payload_hash is None:
+                raise ValueError("payload hash is required with an idempotency key")
+            if idempotency_key in self._dispatch_requests:
+                raise RunConflictError("idempotency key was already used")
+            self._dispatch_requests[idempotency_key] = (run.id, payload_hash)
         self._runs[run.id] = run
+
+    async def get_dispatch_request(self, key: str) -> tuple[ExplorationRun, str] | None:
+        entry = self._dispatch_requests.get(key)
+        if entry is None:
+            return None
+        run_id, payload_hash = entry
+        return self._runs[run_id], payload_hash
 
     async def get(self, run_id: UUID) -> ExplorationRun | None:
         return self._runs.get(run_id)
@@ -75,11 +103,33 @@ class StartExplorationRun:
         mode: RunMode,
         requested_by: str,
         target_run_id: UUID | None = None,
+        idempotency_key: str | None = None,
     ) -> tuple[ExplorationRun, DispatchResult]:
+        payload_hash = None
+        if idempotency_key is not None:
+            payload_hash = hashlib.sha256(
+                json.dumps(
+                    {
+                        "mode": mode.value,
+                        "requested_by": requested_by,
+                        "target_run_id": str(target_run_id) if target_run_id else None,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest()
+            previous = await self.repository.get_dispatch_request(idempotency_key)
+            if previous is not None:
+                previous_run, previous_hash = previous
+                if previous_hash != payload_hash:
+                    raise RunConflictError("idempotency key was already used for a different run")
+                if previous_run.current_stage == "dispatch_failed":
+                    raise WorkflowDispatchError("workflow dispatch was rejected")
+                return previous_run, DispatchResult(accepted=True)
         if await self.repository.has_active_run():
             raise RunConflictError("an exploration run is already active")
         run = ExplorationRun.pending(mode, requested_by, target_run_id)
-        await self.repository.add(run)
+        await self.repository.add(run, idempotency_key, payload_hash)
         try:
             dispatch = await self.dispatcher.dispatch(run)
         except Exception as exc:
