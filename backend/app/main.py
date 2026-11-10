@@ -9,6 +9,7 @@ from fastapi.responses import RedirectResponse
 from starlette.responses import Response
 
 from backend.app.api.errors import install_error_handlers
+from backend.app.api.request_limits import RequestBodyLimitMiddleware
 from backend.app.api.routes import router
 from backend.app.application.recommendation import CalculateRecommendation
 from backend.app.application.review import RecalculateReviewedProduct
@@ -28,6 +29,7 @@ from backend.app.infrastructure.database import (
 )
 from backend.app.infrastructure.github import GitHubActionsDispatcher
 from backend.app.infrastructure.security import SessionManager
+from backend.app.infrastructure.security.login_limit import LoginAttemptLimiter
 from backend.app.shared.config import get_settings
 from backend.app.shared.logging import configure_logging
 
@@ -59,6 +61,10 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "Idempotency-Key", "X-CSRF-Token"],
     )
+    app.add_middleware(
+        RequestBodyLimitMiddleware,
+        maximum_bytes=settings.max_request_body_bytes,
+    )
 
     repository = (
         PostgresRunRepository(settings.database_url)
@@ -80,22 +86,20 @@ def create_app() -> FastAPI:
         settings.session_secret,
         settings.session_ttl_seconds,
     )
+    app.state.login_attempt_limiter = LoginAttemptLimiter(
+        settings.login_max_failures,
+        settings.login_window_seconds,
+    )
     app.state.review_repository = None
     app.state.recalculate_reviewed_product = None
     app.state.ec_review_repository = None
     app.state.inventory_repository = None
     if settings.database_url:
-        candidate_repository = PostgresRecommendationCandidateRepository(
-            settings.database_url
-        )
+        candidate_repository = PostgresRecommendationCandidateRepository(settings.database_url)
         recommendation_repository = PostgresRecommendationRepository(settings.database_url)
         app.state.review_repository = PostgresReviewRepository(settings.database_url)
-        app.state.ec_review_repository = PostgresECExplorationRepository(
-            settings.database_url
-        )
-        app.state.inventory_repository = PostgresInventoryLearningRepository(
-            settings.database_url
-        )
+        app.state.ec_review_repository = PostgresECExplorationRepository(settings.database_url)
+        app.state.inventory_repository = PostgresInventoryLearningRepository(settings.database_url)
         app.state.recalculate_reviewed_product = RecalculateReviewedProduct(
             candidate_repository,
             CalculateRecommendation(recommendation_repository),

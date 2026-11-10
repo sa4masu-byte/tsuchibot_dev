@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     session_secret: str = "development-only-session-secret-change-me"
     session_secure: bool = False
     session_ttl_seconds: int = 60 * 60 * 24 * 7
+    login_max_failures: int = Field(default=5, ge=1, le=100)
+    login_window_seconds: int = Field(default=900, ge=1, le=86400)
+    max_request_body_bytes: int = Field(default=1048576, ge=1024, le=10485760)
     cors_origins: str = "http://localhost:3000"
     database_url: str | None = None
     github_repository: str | None = None

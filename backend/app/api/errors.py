@@ -30,11 +30,14 @@ def install_error_handlers(app: FastAPI) -> None:
             401: "AUTHENTICATION_REQUIRED",
             404: "NOT_FOUND",
             409: "CONFLICT",
+            413: "REQUEST_TOO_LARGE",
+            429: "RATE_LIMITED",
             503: "SERVICE_UNAVAILABLE",
         }.get(exc.status_code, "REQUEST_ERROR")
         return JSONResponse(
             status_code=exc.status_code,
             content=error_payload(code, str(exc.detail), request_id),
+            headers=exc.headers,
         )
 
     @app.exception_handler(RequestValidationError)

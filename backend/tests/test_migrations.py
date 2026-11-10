@@ -18,6 +18,7 @@ def test_migrations_are_ordered_and_parse_as_postgresql() -> None:
         "0008_web_review.sql",
         "0009_ec_exploration.sql",
         "0010_inventory_learning.sql",
+        "0011_command_idempotency.sql",
     ]
     for migration in migrations:
         statements = parse_sql(migration.read_text())
@@ -104,3 +105,10 @@ def test_inventory_learning_migration_preserves_outcome_history() -> None:
     assert "check (purchased_quantity between 1 and 4)" in sql
     assert "sold_quantity + failed_quantity <= purchased_quantity" in sql
     assert "('replacement_product'" in sql
+
+
+def test_command_idempotency_migration_is_append_only_and_private() -> None:
+    sql = (MIGRATIONS / "0011_command_idempotency.sql").read_text()
+    assert "create table audit.command_requests" in sql
+    assert "create trigger command_requests_append_only" in sql
+    assert "alter table audit.command_requests enable row level security" in sql

@@ -1,3 +1,4 @@
+from backend.app.infrastructure.security.session import SessionManager
 from fastapi.testclient import TestClient
 
 
@@ -37,3 +38,59 @@ def test_login_session_and_logout(client: TestClient) -> None:
     logout = client.post("/api/v1/auth/logout")
     assert logout.status_code == 204
     assert client.get("/api/v1/runs").status_code == 401
+
+
+def test_login_is_rate_limited_per_client_after_five_failures(client: TestClient) -> None:
+    for _ in range(5):
+        assert client.post("/api/v1/auth/login", json={"password": "wrong"}).status_code == 401
+    blocked = client.post("/api/v1/auth/login", json={"password": "correct-horse"})
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "RATE_LIMITED"
+    assert int(blocked.headers["retry-after"]) > 0
+
+
+def test_cross_site_login_logout_and_dispatch_are_rejected(client: TestClient) -> None:
+    headers = {"Origin": "https://untrusted.example"}
+    assert (
+        client.post("/api/v1/auth/login", headers=headers, json={"password": "x"}).status_code
+        == 403
+    )
+    assert client.post("/api/v1/auth/login", json={"password": "correct-horse"}).status_code == 200
+    assert client.post("/api/v1/auth/logout", headers=headers).status_code == 403
+    assert (
+        client.post(
+            "/api/v1/runs/dispatch",
+            headers={
+                "Sec-Fetch-Site": "cross-site",
+                "Idempotency-Key": "cross-site-dispatch",
+            },
+            json={"mode": "incremental"},
+        ).status_code
+        == 403
+    )
+
+
+def test_large_request_is_rejected_before_parsing(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/login",
+        content=b"x" * (1024 * 1024 + 1),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "REQUEST_TOO_LARGE"
+
+
+def test_large_streamed_request_is_rejected(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/login",
+        content=iter([b"x" * 700_000, b"x" * 400_000]),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 413
+
+
+def test_malformed_signed_cookie_is_treated_as_unauthenticated() -> None:
+    manager = SessionManager("test-secret", 60)
+    malformed = "a."
+    signature = manager._sign(malformed.split(".", maxsplit=1)[0])
+    assert manager.verify(f"a.{signature}") is None

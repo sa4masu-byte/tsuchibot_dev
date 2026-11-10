@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
+import { createIdempotencyKey } from "@/lib/idempotency";
 
 type Props = {
   productId: string;
@@ -37,7 +38,7 @@ export function OutcomeStartPanel({ productId, sourcePriceJpy }: Props) {
         `/products/${productId}/purchase`,
         {
           method: "POST",
-          headers: { "Idempotency-Key": crypto.randomUUID() },
+          headers: { "Idempotency-Key": createIdempotencyKey() },
           body: JSON.stringify({
             purchased,
             purchased_at: new Date(String(form.get("purchased_at"))).toISOString(),
@@ -69,12 +70,12 @@ export function OutcomeStartPanel({ productId, sourcePriceJpy }: Props) {
       await Promise.all([
         apiFetch(`/products/${productId}/feedback/preference`, {
           method: "POST",
-          headers: { "Idempotency-Key": crypto.randomUUID() },
+          headers: { "Idempotency-Key": createIdempotencyKey() },
           body: JSON.stringify({ signal: form.get("preference"), note: null }),
         }),
         apiFetch(`/products/${productId}/feedback/research-value`, {
           method: "POST",
-          headers: { "Idempotency-Key": crypto.randomUUID() },
+          headers: { "Idempotency-Key": createIdempotencyKey() },
           body: JSON.stringify({ signal: form.get("research_value"), note: null }),
         }),
       ]);

@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,8 +18,12 @@ export default function LoginPage() {
     try {
       await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ password }) });
       router.push("/");
-    } catch {
-      setError("パスワードを確認してください。");
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError && caught.status === 429
+          ? "試行回数が上限に達しました。しばらく待ってから再試行してください。"
+          : "パスワードを確認してください。",
+      );
     } finally {
       setPending(false);
     }

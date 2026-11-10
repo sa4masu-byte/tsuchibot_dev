@@ -37,6 +37,8 @@ router = APIRouter(prefix="/api/v1")
 
 
 def require_same_origin(request: Request, settings: Settings) -> None:
+    if request.headers.get("sec-fetch-site") == "cross-site":
+        raise HTTPException(status_code=403, detail="Cross-site requests are not allowed")
     origin = request.headers.get("origin")
     if origin is not None and origin not in settings.cors_origin_list:
         raise HTTPException(status_code=403, detail="Origin is not allowed")
@@ -103,12 +105,25 @@ async def health() -> HealthResponse:
 @router.post("/auth/login", response_model=SessionResponse, tags=["authentication"])
 async def login(
     body: LoginRequest,
+    request: Request,
     response: Response,
     manager: Annotated[SessionManager, Depends(get_session_manager)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SessionResponse:
+    require_same_origin(request, settings)
+    client_address = request.client.host if request.client else "unknown"
+    limiter = request.app.state.login_attempt_limiter
+    retry_after = limiter.retry_after(client_address)
+    if retry_after:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many login attempts; try again later",
+            headers={"Retry-After": str(retry_after)},
+        )
     if not manager.password_matches(body.password, settings.shared_password):
+        limiter.record_failure(client_address)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+    limiter.clear(client_address)
     token = manager.create()
     identity = manager.verify(token)
     assert identity is not None
@@ -125,7 +140,12 @@ async def login(
 
 
 @router.post("/auth/logout", status_code=204, tags=["authentication"])
-async def logout(response: Response) -> None:
+async def logout(
+    request: Request,
+    response: Response,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> None:
+    require_same_origin(request, settings)
     response.delete_cookie(SESSION_COOKIE, path="/")
 
 
@@ -139,10 +159,15 @@ async def dispatch_run(
     body: RunDispatchRequest,
     request: Request,
     identity: CurrentSession,
+    settings: Annotated[Settings, Depends(get_settings)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
 ) -> DispatchResponse:
+    require_same_origin(request, settings)
     use_case: StartExplorationRun = request.app.state.start_exploration_run
     try:
-        run, dispatch = await use_case.execute(body.mode, identity.subject, body.target_run_id)
+        run, dispatch = await use_case.execute(
+            body.mode, identity.subject, body.target_run_id, idempotency_key
+        )
     except RunConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except WorkflowDispatchError as exc:

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
+import { createIdempotencyKey } from "@/lib/idempotency";
 import { DashboardData, tierLabel, yen } from "@/lib/review-types";
 import { useRequiredSession } from "@/lib/use-session";
 
@@ -24,7 +25,11 @@ export default function Dashboard() {
     apiFetch<DashboardData>("/dashboard")
       .then(setData)
       .catch((error: unknown) => {
-        setMessage(error instanceof Error ? error.message : "概要を取得できませんでした");
+        setMessage(
+          error instanceof ApiError && error.status === 503
+            ? "データベース未接続です。商品・在庫の表示にはPostgreSQL接続が必要です。"
+            : error instanceof Error ? error.message : "概要を取得できませんでした",
+        );
       });
   }, [session]);
 
@@ -34,6 +39,7 @@ export default function Dashboard() {
     try {
       const result = await apiFetch<DispatchResponse>("/runs/dispatch", {
         method: "POST",
+        headers: { "Idempotency-Key": createIdempotencyKey() },
         body: JSON.stringify({ mode: "incremental" }),
       });
       if (result.external_run_id?.startsWith("local-")) {
