@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import { createIdempotencyKey } from "@/lib/idempotency";
 import { ProductDetail, tierLabel, yen } from "@/lib/review-types";
 import { useRequiredSession } from "@/lib/use-session";
 
@@ -51,7 +52,7 @@ export default function ProductDetailPage() {
       const isMoney = field.endsWith("_jpy");
       const updated = await apiFetch<ProductDetail>(`/products/${productId}/corrections`, {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": createIdempotencyKey() },
         body: JSON.stringify({
           field_name: field,
           corrected_value: isMoney ? Number(value) : value.trim(),
@@ -78,7 +79,7 @@ export default function ProductDetailPage() {
         `/products/${productId}/comparables/${comparableId}/${action}`,
         {
           method: "POST",
-          headers: { "Idempotency-Key": crypto.randomUUID() },
+          headers: { "Idempotency-Key": createIdempotencyKey() },
           body: JSON.stringify({ reason: exclude ? "レビュー画面から除外" : "レビュー画面から復元" }),
         },
       );

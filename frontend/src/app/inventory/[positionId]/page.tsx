@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { apiFetch } from "@/lib/api";
+import { createIdempotencyKey } from "@/lib/idempotency";
 import {
   Hypothesis,
   InventoryDetail,
@@ -86,7 +87,7 @@ export default function InventoryDetailPage() {
     try {
       const updated = await apiFetch<InventoryDetail>(`/inventory/${positionId}/${kind}`, {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": createIdempotencyKey() },
         body: JSON.stringify(body),
       });
       setData(updated);
@@ -109,7 +110,7 @@ export default function InventoryDetailPage() {
     try {
       await apiFetch(`/hypotheses/${hypothesisId}/evidence`, {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": createIdempotencyKey() },
         body: JSON.stringify({
           evidence_type: "inventory_outcome_review",
           direction: values.get("direction"),

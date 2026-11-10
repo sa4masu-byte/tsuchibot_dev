@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { ApiError, apiFetch } from "@/lib/api";
+import { createIdempotencyKey } from "@/lib/idempotency";
 import { DashboardData, tierLabel, yen } from "@/lib/review-types";
 import { useRequiredSession } from "@/lib/use-session";
 
@@ -38,7 +39,7 @@ export default function Dashboard() {
     try {
       const result = await apiFetch<DispatchResponse>("/runs/dispatch", {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": createIdempotencyKey() },
         body: JSON.stringify({ mode: "incremental" }),
       });
       if (result.external_run_id?.startsWith("local-")) {
