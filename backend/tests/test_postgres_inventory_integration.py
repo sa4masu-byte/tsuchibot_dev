@@ -19,12 +19,17 @@ from backend.app.infrastructure.database.postgres_inventory import (
     PostgresInventoryLearningRepository,
 )
 from backend.app.infrastructure.database.postgres_runs import PostgresRunRepository
+from backend.app.main import create_app
+from backend.app.shared.config import get_settings
+from fastapi.testclient import TestClient
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 
 
 @pytest.mark.asyncio
-async def test_migrations_and_inventory_command_contract() -> None:
+async def test_migrations_and_inventory_command_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     database_url = os.getenv("TSUCHIBOT_TEST_DATABASE_URL")
     if not database_url:
         pytest.skip("disposable PostgreSQL test database is not configured")
@@ -214,3 +219,48 @@ async def test_migrations_and_inventory_command_contract() -> None:
     assert repeated_run.id == first_run.id
     with pytest.raises(RunConflictError, match="different run"):
         await dispatch.execute(RunMode.FULL, "integration-test", idempotency_key=dispatch_key)
+
+    monkeypatch.setenv("TSUCHIBOT_DATABASE_URL", database_url)
+    get_settings.cache_clear()
+    with TestClient(create_app()) as client:
+        login = client.post("/api/v1/auth/login", json={"password": "correct-horse"})
+        assert login.status_code == 200
+        api_purchase = client.post(
+            f"/api/v1/products/{product_id}/purchase",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "purchased_at": now.isoformat(),
+                "quantity": 1,
+                "product_amount_jpy": 1001,
+                "sourcing_shipping_jpy": 0,
+                "coupon_jpy": 0,
+                "actual_charged_amount_jpy": 1001,
+            },
+        )
+        assert api_purchase.status_code == 200
+        api_position_id = api_purchase.json()["id"]
+        api_listing = client.post(
+            f"/api/v1/inventory/{api_position_id}/listings",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "listed_at": now.isoformat(),
+                "marketplace": "test",
+                "listing_price_jpy": 2000,
+                "quantity": 1,
+            },
+        )
+        assert api_listing.status_code == 200
+        api_sale = client.post(
+            f"/api/v1/inventory/{api_position_id}/sales",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "sold_at": now.isoformat(),
+                "sold_price_jpy": 2000,
+                "actual_fee_jpy": 200,
+                "actual_shipping_jpy": 210,
+                "quantity": 1,
+            },
+        )
+        assert api_sale.status_code == 200
+        assert api_sale.json()["status"] == "sold"
+        assert api_sale.json()["realised_profit_jpy"] == 589
