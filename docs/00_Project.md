@@ -51,8 +51,8 @@ Its mission is to:
 
 A desirable daily response is:
 
-> No profitable products were found at the two nearby Jimoty Spot locations today.
-> Instead, Amazon is currently discounting Product X. Based on recent Mercari evidence, the estimated profit margin is 35%, the 90-day sales prospect score is 82, and the estimated profit is ¥720.
+> The two Jimoty Spot locations have no listings that need a price review today.
+> Separately, Amazon is currently discounting Product X for the retail business. Based on recent Mercari evidence, the estimated profit margin is 35%, the 90-day sales prospect score is 82, and the estimated profit is ¥720.
 
 Tsuchibot must not force recommendations. However, when the first search path produces no useful candidates, it should attempt other reasonable search strategies within the configured exploration budget.
 
