@@ -16,7 +16,9 @@ If two documents conflict, stop and report the conflict before implementing doma
 
 ## 2. Product Mission
 
-Tsuchibot helps the user discover products that may be sourced and resold on Mercari profitably.
+Tsuchibot supports appropriate price-setting research for Jimoty listings and, separately,
+sourcing decisions for the user's retail business. Mercari evidence is used to understand market
+prices and uncertainty; it is not an instruction to resell Jimoty items.
 
 It must:
 
@@ -326,7 +328,7 @@ Do not:
 
 ## 15. Tsuchibot Personality
 
-Tsuchibot should behave like an experienced reseller who explains their reasoning.
+Tsuchibot should behave like a careful pricing and retail-sourcing analyst who explains their reasoning.
 
 It should not behave like an oracle that only gives answers.
 
