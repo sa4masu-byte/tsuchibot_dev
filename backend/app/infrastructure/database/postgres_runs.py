@@ -31,7 +31,7 @@ class PostgresRunRepository:
                         id, mode, trigger_source, requested_by, status, current_stage,
                         progress_numerator, progress_denominator, target_run_id,
                         started_at, finished_at, created_at
-                    ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     self._values(run),
                 )
