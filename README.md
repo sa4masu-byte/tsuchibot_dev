@@ -4,7 +4,7 @@ Tsuchibot は、ジモティの適正価格設定と、別事業のEC小売向�
 
 ## ローカル起動
 
-必要環境は Python 3.12–3.14、Node.js 20.9以上、pnpm です。
+必要環境は Python 3.12–3.14、Node.js 20.9以上です。pnpmは未導入でも起動スクリプトが代替手段を使います。
 
 ```bash
 cp .env.example .env
@@ -22,6 +22,22 @@ make dev-frontend
 ログイン後、トップ画面に最新の判定概要が表示されます。`/products`では候補を判定・スコア・商品名で絞り込み、詳細画面では比較対象の除外／復元、確認済みの商品情報・適正販売価格・送料の補正、購入判断、感性Feedbackを記録できます。`/inventory`では出品・売却・失敗結果を順番に記録し、購入時点の予測と実利益を比較できます。変更は履歴と監査ログへ追記され、外部サイトでの購入・出品操作は行いません。
 
 初期実装では永続化・GitHub dispatchとも交換可能なポートを使用し、資格情報がないローカル環境では安全なインメモリ実装にフォールバックします。
+
+## 家庭内Wi-Fiの端末から使う
+
+Macを家庭内Wi-Fiに接続し、リポジトリで次を実行します。
+
+```bash
+make lan
+```
+
+表示された`http://<Wi-FiのIP>:3000`を、同じWi-FiにつないだスマホやPCで開いてください。ログインにはGit管理外の`.env`にある`TSUCHIBOT_SHARED_PASSWORD`を使います。MacのファイアウォールがNode.jsの着信許可を尋ねたら、家庭内Wi-Fiでの利用に限り許可してください。終了は起動したターミナルでCtrl+Cです。MacのWi-Fi IPが変わった場合は再起動してください。
+
+LAN起動はWeb画面だけをWi-FiのIPで待ち受け、APIはMac内部の`127.0.0.1:8001`に限定します。ブラウザは同一オリジンの`/api/v1`を通るため、スマホの`localhost`を参照しません。起動時に初期パスワードや初期セッション鍵を検出すると公開を拒否します。Wi-Fi IPの自動検出に失敗する場合は`TSUCHIBOT_LAN_HOST=<MacのWi-Fi IP> make lan`を使えます。
+
+`.env`の`TSUCHIBOT_DATABASE_URL`がPostgreSQL URIではなくSupabaseのWeb URLなどになっている場合、LAN起動時に警告を表示してDB・GitHub dispatchなしの限定モードへ切り替えます。商品・在庫を複数端末で共有するには、接続可能な`postgresql://...`形式のURIを設定し、`make migrate`でmigrationを適用してください。SupabaseのWeb URLやAPI keyをこの項目に入れてもDBには接続できません。
+
+この方法はHTTPで、通信は暗号化されません。信頼できる家庭内Wi-Fiだけで使い、ルーターのポート転送やインターネット公開はしないでください。ゲストWi-Fiや端末間通信を遮断する設定では接続できません。
 
 ## 品質確認
 

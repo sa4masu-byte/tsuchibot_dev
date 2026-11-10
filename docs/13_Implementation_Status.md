@@ -205,3 +205,24 @@ remain unchanged as requested.
   this integration contract unless an explicit `*_test` database URL is provided.
 - Migration 0011 has not yet been applied to the connected Supabase project. Production deployment,
   complete mobile E2E coverage, and the remaining Sprint 9 acceptance checks are pending.
+
+## Home LAN access (2026-11-11)
+
+- The frontend now uses same-origin `/api/v1` requests through a server-side route handler. It
+  forwards only selected headers and cookies, requires same-origin evidence for mutations, and
+  keeps the backend address private from browser code.
+- `make lan` builds and serves Next.js on the Mac's Wi-Fi IPv4 address while starting a separate
+  backend on loopback port 8001. Existing development API port 8000 is untouched.
+- LAN startup refuses default or short credentials and plain-HTTP-incompatible secure cookies.
+  The local ignored `.env` received fresh random password and session-secret values; no secret was
+  committed. The route was smoke-tested through the Wi-Fi IP for health, login, session cookie,
+  unauthorized access, and cross-origin rejection.
+- Browser-to-Mac traffic is plain HTTP and is appropriate only on a trusted private Wi-Fi network.
+  It must not be exposed through router port forwarding. The old Supabase connection remains a
+  separate blocker for persisted data and live exploration. The local `.env` currently contains a
+  Supabase Web URL instead of a PostgreSQL URI, so the LAN launcher warns and disables persistent
+  DB and live GitHub dispatch for that session rather than returning database 500 errors.
+- A 390-pixel Chromium browser smoke test completed login over the Wi-Fi IP and displayed the
+  database-unavailable notice. Health, unauthorized session, valid session cookie, and cross-origin
+  rejection were also checked through the LAN address. A separate physical device has not yet
+  been tested; guest-network isolation remains an external network setting.

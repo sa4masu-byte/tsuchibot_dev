@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { DashboardData, tierLabel, yen } from "@/lib/review-types";
 import { useRequiredSession } from "@/lib/use-session";
 
@@ -24,7 +24,11 @@ export default function Dashboard() {
     apiFetch<DashboardData>("/dashboard")
       .then(setData)
       .catch((error: unknown) => {
-        setMessage(error instanceof Error ? error.message : "概要を取得できませんでした");
+        setMessage(
+          error instanceof ApiError && error.status === 503
+            ? "データベース未接続です。商品・在庫の表示にはPostgreSQL接続が必要です。"
+            : error instanceof Error ? error.message : "概要を取得できませんでした",
+        );
       });
   }, [session]);
 
